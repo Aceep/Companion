@@ -125,6 +125,11 @@ export class FocusedWindowWatcher {
         this.follow(global.display.focus_window);
     }
 
+    /** The window whose title is being followed, if any. */
+    get window(): Meta.Window | null {
+        return this.watched;
+    }
+
     destroy(): void {
         global.display.disconnect(this.focusHandlerId);
         this.unwatch();

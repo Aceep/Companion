@@ -77,6 +77,19 @@ export class Positioner {
         this.place();
     }
 
+    /** Where she is right now, in stage pixels. */
+    get position(): Point {
+        return {x: this.sprite.actor.x, y: this.sprite.actor.y};
+    }
+
+    /** Whether her top-left corner may sit at `point` without being snapped back inside the work area. */
+    isInsideArea(point: Point): boolean {
+        const area = this.placementArea();
+        return area !== null &&
+            point.x >= area.minX && point.x <= area.maxX &&
+            point.y >= area.minY && point.y <= area.maxY;
+    }
+
     /** Her remembered spot, in stage pixels. */
     homePosition(): Point | null {
         const area = this.placementArea();
@@ -139,24 +152,34 @@ export class Positioner {
         this.slide(point, pixelsPerSecond, onArrived);
     }
 
-    /** Slides her past that edge of the monitor, at her current height, until only a sliver of her shows. */
-    moveOffscreen(side: Side, pixelsPerSecond: number, onDone: () => void): void {
-        const x = this.offscreenX(side);
+    /**
+     * Slides her past that edge of the monitor, at her current height,
+     * until only a sliver of her shows, or, without `peek`, until her whole
+     * frame is past it.
+     */
+    moveOffscreen(side: Side, pixelsPerSecond: number, onDone: () => void, peek = true): void {
+        const x = this.offscreenX(side, peek);
         if (x === null)
             return;
         this.slide({x, y: this.sprite.actor.y}, pixelsPerSecond, onDone);
     }
 
     /** Same place as `moveOffscreen()`, right away: the monitors changed while she was hiding. */
-    putOffscreen(side: Side): void {
-        const x = this.offscreenX(side);
+    putOffscreen(side: Side, peek = true): void {
+        const x = this.offscreenX(side, peek);
         if (x !== null)
             this.sprite.actor.x = x;
     }
 
+    /**
+     * Stops her where she is. Height included: crawling back to where she
+     * was picked up moves her up or down too, and a stop halfway has to
+     * leave the remembered spot under her, not at the height she was dropped at.
+     */
     cancelMove(): void {
         this.sprite.actor.remove_all_transitions();
         this.rememberFractionX();
+        this.rememberFractionY();
     }
 
     /**
@@ -169,8 +192,7 @@ export class Positioner {
         if (!area)
             return;
         this.rememberFractionX();
-        if (area.maxY > area.minY)
-            this.settings.fractionY = toFraction(this.sprite.actor.y, area.minY, area.maxY);
+        this.rememberFractionY();
         this.place();
     }
 
@@ -194,6 +216,13 @@ export class Positioner {
         this.settings.fractionX = toFraction(this.sprite.actor.x, area.minX, area.maxX);
     }
 
+    private rememberFractionY(): void {
+        const area = this.placementArea();
+        if (this.detached || !area || area.maxY <= area.minY)
+            return;
+        this.settings.fractionY = toFraction(this.sprite.actor.y, area.minY, area.maxY);
+    }
+
     /** Whichever axis has further to go sets the duration, so a diagonal trip keeps the crawl pace. */
     private slide(point: Point, pixelsPerSecond: number, onComplete: () => void): void {
         const actor = this.sprite.actor;
@@ -207,12 +236,18 @@ export class Positioner {
         });
     }
 
-    /** Her x when `PEEK_WIDTH` sprite pixels of her body, not of the empty frame around it, stay on the monitor. */
-    private offscreenX(side: Side): number | null {
+    /**
+     * Her x when `PEEK_WIDTH` sprite pixels of her body, not of the empty
+     * frame around it, stay on the monitor. Without `peek` the whole frame
+     * goes: some gestures reach into its margin.
+     */
+    private offscreenX(side: Side, peek: boolean): number | null {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return null;
         const scale = this.sprite.currentScale;
+        if (!peek)
+            return side === 'left' ? monitor.x - FRAME_SIZE * scale : monitor.x + monitor.width;
         if (side === 'left')
             return monitor.x - (FRAME_SIZE - SIDE_PADDING - PEEK_WIDTH) * scale;
         return monitor.x + monitor.width - (SIDE_PADDING + PEEK_WIDTH) * scale;

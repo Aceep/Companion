@@ -2,6 +2,12 @@ import type Gio from 'gi://Gio';
 
 const MINUTE = 60 * 1000;
 
+/** Read by the window manager itself, which binds the shortcut straight from the schema. */
+export const TALK_SHORTCUT_KEY = 'talk-shortcut';
+
+/** Over every window like the shell's own chrome, or under them, just above the desktop. */
+export type Layer = 'top' | 'behind';
+
 export type SettingsKey =
     | 'visible'
     | 'scale'
@@ -16,9 +22,27 @@ export type SettingsKey =
     | 'fraction-x'
     | 'fraction-y'
     | 'perch'
+    | 'eyes-follow'
+    | 'dodge'
+    | 'layer'
     | 'bedtime-hour'
     | 'pause-reminder-minutes'
-    | 'react-to-music';
+    | 'react-to-music'
+    | 'brain'
+    | 'brain-remarks'
+    | 'comment-interval-minutes'
+    | 'crawl-interval-minutes'
+    | 'homesick-percent'
+    | 'focus-minutes'
+    | 'focus-dnd'
+    | 'recap'
+    | 'recap-hour'
+    | 'last-recap-date'
+    | 'stats'
+    | 'outfits'
+    | 'outfit-override'
+    | 'birthday'
+    | 'last-outfit-lines';
 
 /** Typed, cleanup-friendly view over the extension's GSettings. */
 export class CrepeSettings {
@@ -85,6 +109,19 @@ export class CrepeSettings {
         return this.gsettings.get_boolean('perch');
     }
 
+    get eyesFollow(): boolean {
+        return this.gsettings.get_boolean('eyes-follow');
+    }
+
+    /** Move out of the focused window's way; only on top of the windows, where she could be in it. */
+    get dodge(): boolean {
+        return this.gsettings.get_boolean('dodge');
+    }
+
+    get layer(): Layer {
+        return this.gsettings.get_string('layer') === 'behind' ? 'behind' : 'top';
+    }
+
     /** 0 means no bedtime. */
     get bedtimeHour(): number {
         return this.gsettings.get_int('bedtime-hour');
@@ -97,6 +134,93 @@ export class CrepeSettings {
 
     get reactToMusic(): boolean {
         return this.gsettings.get_boolean('react-to-music');
+    }
+
+    /** Talk with the conversation daemon when it runs. */
+    get brain(): boolean {
+        return this.gsettings.get_boolean('brain');
+    }
+
+    get brainRemarks(): boolean {
+        return this.gsettings.get_boolean('brain-remarks');
+    }
+
+    /** Average wait between two idle remarks; 0 means none. */
+    get commentIntervalMs(): number {
+        return this.gsettings.get_int('comment-interval-minutes') * MINUTE;
+    }
+
+    /** Average wait between two crawls of her own; 0 means none, whatever `crawl` says. */
+    get crawlIntervalMs(): number {
+        return this.gsettings.get_int('crawl-interval-minutes') * MINUTE;
+    }
+
+    /** Chance, between 0 and 1, that a calm octopus crawls back after a drop. */
+    get homesickChance(): number {
+        return this.gsettings.get_int('homesick-percent') / 100;
+    }
+
+    get focusMinutes(): number {
+        return this.gsettings.get_int('focus-minutes');
+    }
+
+    get focusMs(): number {
+        return this.focusMinutes * MINUTE;
+    }
+
+    /** Turn the desktop's banners off while she helps you focus. */
+    get focusDnd(): boolean {
+        return this.gsettings.get_boolean('focus-dnd');
+    }
+
+    get recap(): boolean {
+        return this.gsettings.get_boolean('recap');
+    }
+
+    get recapHour(): number {
+        return this.gsettings.get_int('recap-hour');
+    }
+
+    /** "YYYY-MM-DD", or "" before the first recap. */
+    get lastRecapDate(): string {
+        return this.gsettings.get_string('last-recap-date');
+    }
+
+    set lastRecapDate(value: string) {
+        this.gsettings.set_string('last-recap-date', value);
+    }
+
+    /** The daily counters, as JSON; `StatsStore` reads and writes it. */
+    get stats(): string {
+        return this.gsettings.get_string('stats');
+    }
+
+    set stats(value: string) {
+        this.gsettings.set_string('stats', value);
+    }
+
+    /** The master switch for her outfits. */
+    get outfits(): boolean {
+        return this.gsettings.get_boolean('outfits');
+    }
+
+    /** An outfit id she wears whatever the date, or "" to follow the rules. */
+    get outfitOverride(): string {
+        return this.gsettings.get_string('outfit-override');
+    }
+
+    /** "MM-DD". */
+    get birthday(): string {
+        return this.gsettings.get_string('birthday');
+    }
+
+    /** JSON object: the day, as "YYYY-MM-DD", each outfit last got its line. */
+    get lastOutfitLines(): string {
+        return this.gsettings.get_string('last-outfit-lines');
+    }
+
+    set lastOutfitLines(value: string) {
+        this.gsettings.set_string('last-outfit-lines', value);
     }
 
     get fractionX(): number {

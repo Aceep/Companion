@@ -20,7 +20,7 @@ mkdir -p "$TARGET/schemas"
 cp schemas/*.gschema.xml "$TARGET/schemas/"
 glib-compile-schemas --strict "$TARGET/schemas"
 mkdir -p "$TARGET/assets"
-cp assets/animations.json assets/repliques.json "$TARGET/assets/"
+cp assets/animations.json assets/repliques.json assets/tenues.json "$TARGET/assets/"
 for dir in assets/*/; do
     name="$(basename "$dir")"
     mkdir -p "$TARGET/assets/$name"

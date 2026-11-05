@@ -21,10 +21,28 @@
       <default>true</default>
       <summary>Let her crawl sideways now and then</summary>
     </key>
+    <key name="crawl-interval-minutes" type="i">
+      <range min="0" max="60"/>
+      <default>5</default>
+      <summary>Average minutes between two crawls of her own</summary>
+      <description>Each wait is picked between two thirds and four thirds of this. 0 means she never crawls by herself; "crawl" stays the master switch.</description>
+    </key>
     <key name="talk" type="b">
       <default>true</default>
       <summary>Let her talk</summary>
       <description>Show a short line from assets/repliques.json in a bubble above her now and then.</description>
+    </key>
+    <key name="comment-interval-minutes" type="i">
+      <range min="0" max="180"/>
+      <default>30</default>
+      <summary>Average minutes between two idle remarks</summary>
+      <description>Each wait is picked between two thirds and four thirds of this. 0 means no remark for no reason.</description>
+    </key>
+    <key name="homesick-percent" type="i">
+      <range min="0" max="100"/>
+      <default>25</default>
+      <summary>Chance, in percent, that she crawls back after being dropped while calm</summary>
+      <description>Doubled while she is annoyed. While she sulks she always goes back.</description>
     </key>
     <key name="react-to-notifications" type="b">
       <default>true</default>
@@ -53,6 +71,25 @@
       <summary>Perch on the focused window</summary>
       <description>Sit on the right end of the focused window's title bar and follow it, instead of staying at her own spot.</description>
     </key>
+    <key name="eyes-follow" type="b">
+      <default>true</default>
+      <summary>Follow the pointer with her eyes</summary>
+      <description>While she rests, her eyes turn towards the pointer. Close to her, or left still for a few seconds, she looks straight ahead.</description>
+    </key>
+    <key name="dodge" type="b">
+      <default>true</default>
+      <summary>Move out of the focused window's way</summary>
+      <description>When more than a quarter of her frame sits over the focused window, she crawls aside on her row, and back once the window has gone. Only with layer set to top.</description>
+    </key>
+    <key name="layer" type="s">
+      <choices>
+        <choice value="top"/>
+        <choice value="behind"/>
+      </choices>
+      <default>'top'</default>
+      <summary>Where she lives on the stage</summary>
+      <description>"top": over every window, like the shell's own chrome. "behind": under every window, just above the desktop; her speech bubble stays on top.</description>
+    </key>
     <key name="bedtime-hour" type="i">
       <range min="0" max="23"/>
       <default>20</default>
@@ -70,6 +107,20 @@
       <summary>Comment on music</summary>
       <description>Follow the first MPRIS media player on the session bus and remark on new tracks now and then.</description>
     </key>
+    <key name="brain" type="b">
+      <default>true</default>
+      <summary>Talk with the conversation daemon</summary>
+      <description>When crepe-daemon runs on the session bus, offer to talk to her from the menu and the shortcut. Without the daemon nothing changes.</description>
+    </key>
+    <key name="brain-remarks" type="b">
+      <default>false</default>
+      <summary>Let the daemon write some idle remarks</summary>
+      <description>One idle remark in three is asked from the daemon instead of picked from assets/repliques.json. Each one costs a request.</description>
+    </key>
+    <key name="talk-shortcut" type="as">
+      <default><![CDATA[['<Super>c']]]></default>
+      <summary>Shortcut that opens the box to talk to her</summary>
+    </key>
     <key name="fraction-x" type="d">
       <range min="0" max="1"/>
       <default>1.0</default>
@@ -81,6 +132,65 @@
       <default>1.0</default>
       <summary>Vertical position</summary>
       <description>Where she sits down the primary monitor's work area: 0 is the top edge, 1 the bottom edge. She crawls at this height.</description>
+    </key>
+    <key name="focus-minutes" type="i">
+      <range min="5" max="180"/>
+      <default>45</default>
+      <summary>Length of a focus session, in minutes</summary>
+    </key>
+    <key name="focus-dnd" type="b">
+      <default>true</default>
+      <summary>Turn notification banners off during a focus session</summary>
+      <description>Sets org.gnome.desktop.notifications show-banners to false for the session, then back to what it was.</description>
+    </key>
+    <key name="recap" type="b">
+      <default>true</default>
+      <summary>Evening recap</summary>
+      <description>Once a day, at recap-hour, she sums up the day from her counters.</description>
+    </key>
+    <key name="recap-hour" type="i">
+      <range min="0" max="23"/>
+      <default>18</default>
+      <summary>Hour of the evening recap</summary>
+    </key>
+    <key name="last-recap-date" type="s">
+      <default>''</default>
+      <summary>Day of the last recap, as YYYY-MM-DD</summary>
+      <description>Internal: keeps a re-login from repeating the day's recap.</description>
+    </key>
+    <key name="stats" type="s">
+      <default>'{}'</default>
+      <summary>Daily counters</summary>
+      <description>Internal: JSON object of the last 30 days, keyed by YYYY-MM-DD. Written at most once a minute.</description>
+    </key>
+    <key name="outfits" type="b">
+      <default>true</default>
+      <summary>Let her dress up</summary>
+      <description>Sleep mask, knit hat in winter, sunglasses in summer, party hat on her birthday, a drink and a deckchair on Friday evenings. Off, she wears nothing, outfit-override included.</description>
+    </key>
+    <key name="outfit-override" type="s">
+      <choices>
+        <choice value=""/>
+        <choice value="masque_nuit"/>
+        <choice value="bonnet"/>
+        <choice value="lunettes"/>
+        <choice value="chapeau_fete"/>
+        <choice value="verre"/>
+        <choice value="transat"/>
+      </choices>
+      <default>''</default>
+      <summary>Outfit she wears whatever the date</summary>
+      <description>One id of assets/tenues.json, worn alone instead of what the rules say, for showing them off. Empty follows the rules. The sleep mask still only shows while she sleeps.</description>
+    </key>
+    <key name="birthday" type="s">
+      <default>'05-21'</default>
+      <summary>Her birthday, as MM-DD</summary>
+      <description>She wears a party hat all that day. Anything that is not a date of the year means no birthday.</description>
+    </key>
+    <key name="last-outfit-lines" type="s">
+      <default>'{}'</default>
+      <summary>Day each outfit last got its line</summary>
+      <description>Internal: JSON object of outfit ids to YYYY-MM-DD, so she remarks on an outfit once a day at most, across logins.</description>
     </key>
   </schema>
 </schemalist>

@@ -5,6 +5,9 @@ export type Scheduler = (delayMs: number, callback: () => void) => () => void;
 
 export type FrameListener = (animation: AnimationDef, frameIndex: number) => void;
 
+/** Told each time an animation starts, before its first frame shows, and with null when the player stops. */
+export type AnimationListener = (animation: AnimationDef | null) => void;
+
 export interface PlayOptions {
     /** Called when a one-shot animation reaches its last frame. */
     onDone?: () => void;
@@ -16,7 +19,8 @@ export interface PlayOptions {
  *
  * Rules, from Theo's brief:
  *  - looping animations run until something else is played;
- *  - one-shot animations play once, then fall back to the idle animation;
+ *  - one-shot animations play once, then fall back to the resting pose
+ *    (the idle animation unless `setRestingPose()` says otherwise);
  *  - an animation with a tail loop plays once, then loops its tail forever.
  */
 export class AnimationPlayer {
@@ -29,6 +33,8 @@ export class AnimationPlayer {
     private inTailLoop = false;
     private cancelTimer: (() => void) | null = null;
     private onDone: (() => void) | null = null;
+    private restingPose: () => string = () => IDLE_ANIMATION;
+    private onAnimationChanged: AnimationListener = () => {};
 
     constructor(animations: Map<string, AnimationDef>, schedule: Scheduler, onFrame: FrameListener) {
         this.animations = animations;
@@ -44,6 +50,21 @@ export class AnimationPlayer {
         return this.animations.has(name);
     }
 
+    /**
+     * What a one-shot falls back to, asked when it ends rather than when
+     * it starts: her mood may have changed in between (a sulk ending mid-gesture),
+     * and so may where her eyes look: the answer can be a variant of the
+     * pose with the eyes turned towards the pointer.
+     */
+    setRestingPose(resolve: () => string): void {
+        this.restingPose = resolve;
+    }
+
+    /** What she wears depends on what she does: hats come off for a crawl, the sleep mask only shows asleep. */
+    setAnimationListener(listener: AnimationListener): void {
+        this.onAnimationChanged = listener;
+    }
+
     play(name: string, options: PlayOptions = {}): void {
         const animation = this.animations.get(name);
         if (!animation)
@@ -54,6 +75,7 @@ export class AnimationPlayer {
         this.frameIndex = 0;
         this.inTailLoop = false;
         this.onDone = options.onDone ?? null;
+        this.onAnimationChanged(animation);
         this.showFrame();
     }
 
@@ -61,6 +83,7 @@ export class AnimationPlayer {
         this.clearTimer();
         this.current = null;
         this.onDone = null;
+        this.onAnimationChanged(null);
     }
 
     private showFrame(): void {
@@ -90,7 +113,7 @@ export class AnimationPlayer {
 
         const done = this.onDone;
         this.onDone = null;
-        this.play(IDLE_ANIMATION);
+        this.play(this.restingPose());
         done?.();
     }
 

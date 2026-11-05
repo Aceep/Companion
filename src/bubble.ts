@@ -23,9 +23,14 @@ interface EaseableBoxLayout extends St.BoxLayout {
 type WrapMode = Clutter.Text['line_wrap_mode'];
 type EllipsizeMode = Clutter.Text['ellipsize'];
 
+/** What she shows while the daemon thinks; no reading time, it stays until the answer replaces it. */
+const PONDERING = '…';
+
 /**
  * The speech bubble above Crêpe's head. It follows her while she crawls
- * and fades out on its own once the line has had time to be read.
+ * and fades out on its own once the line has had time to be read. While
+ * something else sits over her head (the box to talk to her), the bubble
+ * goes over that instead.
  */
 export class SpeechBubble {
     readonly actor: St.BoxLayout;
@@ -35,6 +40,8 @@ export class SpeechBubble {
     private readonly spriteHandlerIds: number[];
     private cancelHide: (() => void) | null = null;
     private showing = false;
+    private anchor: Clutter.Actor | null = null;
+    private anchorHandlerIds: number[] = [];
 
     constructor(sprite: CrepeSprite, timers: TimerPool) {
         this.sprite = sprite;
@@ -50,6 +57,9 @@ export class SpeechBubble {
         // chrome that tracks fullscreen, and flips it back on whenever a
         // fullscreen window goes away.
         this.actor = new St.BoxLayout({style_class: 'crepe-bubble', opacity: 0});
+        // A horizontal box asks for its height first, for no width in particular,
+        // so a wrapped line got one row of background and spilled out below it.
+        this.actor.request_mode = Clutter.RequestMode.HEIGHT_FOR_WIDTH;
         this.actor.add_child(this.label);
         Main.layoutManager.addTopChrome(this.actor, {
             affectsInputRegion: false,
@@ -69,16 +79,30 @@ export class SpeechBubble {
 
     /** Shows `text`, replacing whatever she was saying, and restarts the reading time. */
     say(text: string): void {
-        this.cancelHide?.();
-        this.label.text = text;
-        this.actor.remove_all_transitions();
-        this.showing = true;
-        this.reposition();
-        (this.actor as EaseableBoxLayout).ease({opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        this.show(text);
         this.cancelHide = this.timers.schedule(BASE_DISPLAY_MS + DISPLAY_MS_PER_CHARACTER * text.length, () => {
             this.cancelHide = null;
             this.fadeOut();
         });
+    }
+
+    /** "…" until the next `say()` or `hide()`: she is waiting for the daemon's answer. */
+    ponder(): void {
+        this.show(PONDERING);
+    }
+
+    /** Sits over `actor` rather than her head while it is there; null puts it back over her head. */
+    setAnchor(actor: Clutter.Actor | null): void {
+        this.dropAnchor();
+        this.anchor = actor;
+        if (actor) {
+            this.anchorHandlerIds = [
+                actor.connect('notify::x', () => this.follow()),
+                actor.connect('notify::y', () => this.follow()),
+                actor.connect('notify::height', () => this.follow()),
+            ];
+        }
+        this.follow();
     }
 
     follow(): void {
@@ -95,6 +119,7 @@ export class SpeechBubble {
     }
 
     destroy(): void {
+        this.dropAnchor();
         for (const id of this.spriteHandlerIds)
             this.sprite.actor.disconnect(id);
         this.spriteHandlerIds.length = 0;
@@ -102,6 +127,25 @@ export class SpeechBubble {
         this.cancelHide = null;
         Main.layoutManager.removeChrome(this.actor);
         this.actor.destroy();
+    }
+
+    private show(text: string): void {
+        this.cancelHide?.();
+        this.cancelHide = null;
+        this.label.text = text;
+        this.actor.remove_all_transitions();
+        this.showing = true;
+        this.reposition();
+        (this.actor as EaseableBoxLayout).ease({opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+    }
+
+    private dropAnchor(): void {
+        if (this.anchor) {
+            for (const id of this.anchorHandlerIds)
+                this.anchor.disconnect(id);
+        }
+        this.anchorHandlerIds = [];
+        this.anchor = null;
     }
 
     private fadeOut(): void {
@@ -115,7 +159,7 @@ export class SpeechBubble {
         });
     }
 
-    /** Centred above her head, kept on the primary monitor; below her when the top edge is too close. */
+    /** Centred above her head (or the anchor), kept on the primary monitor; below when the top edge is too close. */
     private reposition(): void {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
@@ -124,14 +168,18 @@ export class SpeechBubble {
         const sprite = this.sprite.actor;
         const scale = this.sprite.currentScale;
 
-        const centredX = sprite.x + this.sprite.size / 2 - width / 2;
+        // Against her head and tentacles, not the empty rows of the frame around them.
+        const [centreX, top, bottom] = this.anchor
+            ? [this.anchor.x + this.anchor.width / 2, this.anchor.y, this.anchor.y + this.anchor.height]
+            : [sprite.x + this.sprite.size / 2, sprite.y + HEAD_PADDING * scale, sprite.y + this.sprite.size - FEET_PADDING * scale];
+
+        const centredX = centreX - width / 2;
         const minX = monitor.x + SCREEN_MARGIN;
         const maxX = monitor.x + monitor.width - width - SCREEN_MARGIN;
         const x = Math.max(minX, Math.min(maxX, centredX));
 
-        // Against her head and tentacles, not the empty rows of the frame around them.
-        const above = sprite.y + HEAD_PADDING * scale - GAP - height;
-        const below = sprite.y + this.sprite.size - FEET_PADDING * scale + GAP;
+        const above = top - GAP - height;
+        const below = bottom + GAP;
         const y = above >= monitor.y ? above : below;
         this.actor.set_position(Math.round(x), Math.round(y));
     }

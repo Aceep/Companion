@@ -3,12 +3,15 @@ const SECOND = 1000;
 /** What she is pestered with. Being carried around costs more patience than a click. */
 export type PokeKind = 'click' | 'drag';
 
-export type MoodLevel = 'calm' | 'annoyed' | 'angry';
+/** Furious only happens to an octopus already sulking: she has stormed off the screen. */
+export type MoodLevel = 'calm' | 'annoyed' | 'angry' | 'furious';
 
 export interface PokeResult {
     level: MoodLevel;
     /** True only on the poke that tips her over, so the bat comes out once per sulk. */
     becameAngry: boolean;
+    /** True only on the poke that sends a sulking octopus off the screen, once per departure. */
+    becameFurious: boolean;
 }
 
 const POKE_POINTS: Record<PokeKind, number> = {
@@ -16,11 +19,13 @@ const POKE_POINTS: Record<PokeKind, number> = {
     drag: 2,
 };
 /** Past this, more pestering only makes her take longer to calm down. */
-const MAX_SCORE = 8;
+const MAX_SCORE = 12;
 const DECAY_EVERY = 20 * SECOND;
-const ANNOYED_FROM = 3;
-const ANGRY_FROM = 5;
-const SULK_DURATION = 60 * SECOND;
+const ANNOYED_FROM = 4;
+const ANGRY_FROM = 8;
+const SULK_DURATION = 90 * SECOND;
+/** Back from storming off, she still sulks at least this long. */
+const SULK_AFTER_STORMING_OFF = 60 * SECOND;
 
 /**
  * How fed up Crêpe is with being clicked and carried around. Pure
@@ -32,6 +37,8 @@ export class Annoyance {
     private scoreAtLastPoke = 0;
     private lastPokeAt = 0;
     private sulkUntil = 0;
+    /** Gone off the screen in a fury, until `cameBack()`. */
+    private stormedOff = false;
 
     constructor(now: () => number = () => Date.now()) {
         this.now = now;
@@ -42,7 +49,7 @@ export class Annoyance {
     }
 
     get level(): MoodLevel {
-        return levelFor(this.score);
+        return this.stormedOff ? 'furious' : levelFor(this.score);
     }
 
     get isSulking(): boolean {
@@ -61,10 +68,26 @@ export class Annoyance {
 
         const level = levelFor(this.scoreAtLastPoke);
         const becameAngry = level === 'angry' && !wasSulking;
+        // A calm octopus pushed to the cap only gets angry; it takes pestering her mid-sulk.
+        const becameFurious = wasSulking && !this.stormedOff && this.scoreAtLastPoke >= MAX_SCORE;
+        if (becameFurious)
+            this.stormedOff = true;
         // Pestering a sulking octopus only makes the sulk last longer.
         if (becameAngry || wasSulking)
             this.sulkUntil = now + SULK_DURATION;
-        return {level, becameAngry};
+        return {level: this.stormedOff ? 'furious' : level, becameAngry, becameFurious};
+    }
+
+    /**
+     * Back from storming off: down to just angry, so the next poke does
+     * not send her away again, and still sulking for a while.
+     */
+    cameBack(): void {
+        const now = this.now();
+        this.stormedOff = false;
+        this.scoreAtLastPoke = Math.min(ANGRY_FROM, this.scoreAt(now));
+        this.lastPokeAt = now;
+        this.sulkUntil = Math.max(this.sulkUntil, now + SULK_AFTER_STORMING_OFF);
     }
 
     /** One point forgiven per quiet stretch since the last poke. */

@@ -20,7 +20,9 @@ export const VOICE_EVENTS = [
     'agacee',
     'enervee',
     'boude',
+    'batte_rangee',
     'deplacee',
+    'retour_maison',
     'patience',
     'trop_de_notifs',
     'couche_tard',
@@ -31,22 +33,49 @@ export const VOICE_EVENTS = [
     'enfin',
     'fin_du_chut',
     'perplexe',
+    'cerveau_absent',
+    'cerveau_fatigue',
+    'cerveau_panne',
+    'depart',
+    'retour_furieuse',
+    'tache_terminee',
+    'attention',
+    'pipeline_echec',
+    'ticket_nouveau',
+    'tickets_ouverts',
+    'travail_non_commite',
+    'machine',
+    'agenda',
+    'fin_concentration',
+    'esquive',
+    'bilan',
+    'tenue_fete',
+    'tenue_vendredi',
+    'tenue_hiver',
+    'tenue_ete',
 ] as const;
 
 export type VoiceEvent = typeof VOICE_EVENTS[number];
 
-/** Events the rest of the extension fires; the time-of-day ones are only chosen here. */
-export type TriggerEvent = Exclude<VoiceEvent, 'matin' | 'soir' | 'vendredi'>;
+/** Events the rest of the extension fires; the time-of-day ones are only chosen here, the recap has `recap()`. */
+export type TriggerEvent = Exclude<VoiceEvent, 'matin' | 'soir' | 'vendredi' | 'bilan'>;
 
-/** What a line may refer to between braces: `{titre}` is the track playing, `{heure}` is filled here. */
+/**
+ * What a line may refer to between braces: `{titre}` is the track playing,
+ * `{texte}` what a script sent with a nudge, `{tickets}` how many tickets
+ * are open as a script last said, `{heure}` is filled here. The recap's
+ * counters are `{notifs}`, `{erreurs}`, `{succes}`, `{clics}` and `{nudges}`.
+ */
 export type LineValues = Readonly<Partial<Record<Placeholder, string>>>;
 
-const PLACEHOLDERS = ['heure', 'titre'] as const;
+const PLACEHOLDERS = ['heure', 'titre', 'texte', 'tickets', 'notifs', 'erreurs', 'succes', 'clics', 'nudges'] as const;
 type Placeholder = typeof PLACEHOLDERS[number];
 const PLACEHOLDER_PATTERN = /\{([a-z]+)\}/g;
 
 /** A chatty octopus is not a bored one: at most one line per 45 seconds. */
 const GLOBAL_COOLDOWN = 45 * SECOND;
+/** Known open tickets come up in one greeting in three; every time would be nagging. */
+const TICKETS_MENTION_CHANCE = 1 / 3;
 
 /** Chance that an event gets a line at all, once the cooldown allows it. */
 const PROBABILITY: Record<TriggerEvent, number> = {
@@ -61,7 +90,9 @@ const PROBABILITY: Record<TriggerEvent, number> = {
     agacee: 1.0,
     enervee: 1.0,
     boude: 1.0,
+    batte_rangee: 1.0,
     deplacee: 0.8,
+    retour_maison: 1.0,
     patience: 0.8,
     trop_de_notifs: 1.0,
     couche_tard: 1.0,
@@ -72,17 +103,43 @@ const PROBABILITY: Record<TriggerEvent, number> = {
     enfin: 0.9,
     fin_du_chut: 0.6,
     perplexe: 0.9,
+    cerveau_absent: 1.0,
+    cerveau_fatigue: 1.0,
+    cerveau_panne: 1.0,
+    depart: 1.0,
+    retour_furieuse: 1.0,
+    // A script was set up on purpose to tell her: it gets its line.
+    tache_terminee: 1.0,
+    attention: 1.0,
+    pipeline_echec: 1.0,
+    ticket_nouveau: 1.0,
+    tickets_ouverts: 1.0,
+    travail_non_commite: 1.0,
+    machine: 1.0,
+    agenda: 1.0,
+    fin_concentration: 1.0,
+    // Moving out of the way is the point; saying so every time would be the opposite.
+    esquive: 1 / 3,
+    // Once a day at most per outfit already: when it comes, it is said.
+    tenue_fete: 1.0,
+    tenue_vendredi: 1.0,
+    tenue_hiver: 1.0,
+    tenue_ete: 1.0,
 };
 
 /**
- * Replies to the user herself, and lines that come with something she
+ * Replies to the user herself (the daemon failing to answer them included), and lines that come with something she
  * does for them (the mute offer, the break reminder, going to bed) or
  * answer something they just did (turning banners back on); making them
- * wait for a cooldown would read as ignoring them.
+ * wait for a cooldown would read as ignoring them. Nudges are messages a
+ * script was set up to pass on: dropping them for a cooldown would lose them.
+ * The end of a focus session answers the user having asked for one.
  */
 const DIRECT_EVENTS: ReadonlySet<TriggerEvent> = new Set([
     'retour', 'clic', 'agacee', 'enervee', 'boude', 'trop_de_notifs', 'pause', 'couche_tard', 'fin_du_chut',
-    'enfin', 'perplexe',
+    'enfin', 'perplexe', 'batte_rangee', 'retour_maison', 'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne',
+    'depart', 'retour_furieuse', 'tache_terminee', 'attention', 'pipeline_echec', 'ticket_nouveau', 'tickets_ouverts',
+    'travail_non_commite', 'machine', 'agenda', 'fin_concentration',
 ]);
 
 /**
@@ -90,10 +147,19 @@ const DIRECT_EVENTS: ReadonlySet<TriggerEvent> = new Set([
  * come with its line, a sulk answers every click, and the mute offer
  * lands right when the previous notification's remark is still showing.
  * The applause and the head-scratch replace an error remark that is
- * usually still on screen, so they talk over it too.
+ * usually still on screen, so they talk over it too. Putting the bat away
+ * closes the sulk, and crawling back home after a drop answers the drop:
+ * both come with their gesture, whatever is still showing. A failed
+ * question replaces the "…" she shows while waiting for the answer.
+ * Storming off and coming back from it are the last word of a sulk. A
+ * nudge passes on a message that would be lost if it waited its turn, and
+ * the end of a focus session would be missed if it did.
  */
 const INTERRUPTING_EVENTS: ReadonlySet<TriggerEvent> = new Set([
-    'agacee', 'enervee', 'boude', 'trop_de_notifs', 'enfin', 'perplexe',
+    'agacee', 'enervee', 'boude', 'trop_de_notifs', 'enfin', 'perplexe', 'batte_rangee', 'retour_maison',
+    'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne', 'depart', 'retour_furieuse',
+    'tache_terminee', 'attention', 'pipeline_echec', 'ticket_nouveau', 'tickets_ouverts',
+    'travail_non_commite', 'machine', 'agenda', 'fin_concentration',
 ]);
 
 /** Only greetings and plain clicks get a remark about the hour; a sulk does not chat about the weather. */
@@ -140,7 +206,53 @@ export class Voice {
         this.lines = lines;
     }
 
-    /** Lines with a placeholder missing from `values` are never picked. */
+    /** Whether an idle remark would be let through right now: talking allowed and the cooldown over. */
+    get mayRemark(): boolean {
+        return this.settings.talk && Date.now() - this.lastSpokenAt >= GLOBAL_COOLDOWN;
+    }
+
+    /**
+     * A remark written elsewhere (the daemon's), under the rules of an idle
+     * one: the talk switch and the cooldown. Returns it, or null when she keeps quiet.
+     */
+    utter(line: string): string | null {
+        if (!this.mayRemark)
+            return null;
+        this.lastSpokenAt = Date.now();
+        return line;
+    }
+
+    /**
+     * Something a script asked her to pass on as is: only the talk switch
+     * keeps it to herself. Returns it, or null when she keeps quiet.
+     */
+    relay(line: string): string | null {
+        if (!this.settings.talk)
+            return null;
+        this.lastSpokenAt = Date.now();
+        return line;
+    }
+
+    /**
+     * The evening recap, from the day's counters; null counters mean an
+     * empty day and pick one of the lines without any. It waits for the
+     * bubble to be free rather than talk over something. Returns the line,
+     * or null when she keeps quiet, so the caller can try again later.
+     */
+    recap(counts: LineValues | null): string | null {
+        if (!this.settings.talk || this.isBubbleShowing())
+            return null;
+        const line = this.pickLine('bilan', counts ?? {}, counts === null ? null : 'any');
+        if (line === null)
+            return null;
+        this.lastSpokenAt = Date.now();
+        return line;
+    }
+
+    /**
+     * Lines with a placeholder missing from `values` are never picked.
+     * Lines with `{tickets}` only one time in three when it is known.
+     */
     speak(event: TriggerEvent, values: LineValues = {}): string | null {
         if (!this.settings.talk)
             return null;
@@ -157,7 +269,7 @@ export class Voice {
         const date = new Date(now);
         const tellsTime = this.isFirstMorningGreeting(event, date);
         const chosen = tellsTime ? 'matin' : this.withTimeOfDay(event, now);
-        const line = this.pickLine(chosen, {...values, heure: clock(date)}, tellsTime ? 'heure' : null);
+        const line = this.pickWithTickets(chosen, {...values, heure: clock(date)}, tellsTime);
         if (line === null)
             return null;
         this.lastSpokenAt = now;
@@ -184,20 +296,38 @@ export class Voice {
     }
 
     /**
-     * A random line that `values` can fill, never the one she said last
-     * time for the same event. `mention` keeps only lines using that placeholder.
+     * The time told wins over the tickets. Otherwise, with the tickets
+     * known and the odds for it, a line about them if the event has one.
      */
-    private pickLine(event: VoiceEvent, values: LineValues, mention: Placeholder | null): string | null {
+    private pickWithTickets(event: VoiceEvent, values: LineValues, tellsTime: boolean): string | null {
+        const {tickets, ...withoutTickets} = values;
+        if (tellsTime)
+            return this.pickLine(event, withoutTickets, 'heure');
+        if (tickets !== undefined && Math.random() < TICKETS_MENTION_CHANCE) {
+            const line = this.pickLine(event, values, 'tickets');
+            if (line !== null)
+                return line;
+        }
+        return this.pickLine(event, withoutTickets, null);
+    }
+
+    /**
+     * A random line that `values` can fill, never the one she said last
+     * time for the same event. `mention` keeps only lines using that
+     * placeholder, or using any placeholder at all for 'any'.
+     */
+    private pickLine(event: VoiceEvent, values: LineValues, mention: Placeholder | 'any' | null): string | null {
         const candidates = (this.lines.get(event) ?? []).filter(line =>
-            placeholdersOf(line).every(name => values[name] !== undefined) &&
-            (mention === null || placeholdersOf(line).includes(mention)));
+            placeholdersOf(line).every(name => values[name] !== undefined) && mentions(line, mention));
         const previous = this.lastLine.get(event);
         const fresh = candidates.length > 1 ? candidates.filter(line => line !== previous) : candidates;
         const line = fresh[Math.floor(Math.random() * fresh.length)];
         if (line === undefined)
             return null;
         this.lastLine.set(event, line);
-        return line.replace(PLACEHOLDER_PATTERN, (_match, name: Placeholder) => values[name] ?? '');
+        const filled = line.replace(PLACEHOLDER_PATTERN, (_match, name: Placeholder) => values[name] ?? '');
+        // A cut `{texte}` already ends with an ellipsis: the line's own full stop would double it.
+        return filled.replace(/…\./g, '…');
     }
 }
 
@@ -223,6 +353,13 @@ function clock(date: Date): string {
 
 function dayOf(date: Date): string {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+function mentions(line: string, mention: Placeholder | 'any' | null): boolean {
+    if (mention === null)
+        return true;
+    const names = placeholdersOf(line);
+    return mention === 'any' ? names.length > 0 : names.includes(mention);
 }
 
 function placeholdersOf(line: string): Placeholder[] {

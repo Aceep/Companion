@@ -10,7 +10,8 @@
     "Toujours au mauvais moment.",
     "On t'appelle. Pas moi, hein.",
     "Une de plus dans la pile.",
-    "Pile quand c'était calme."
+    "Pile quand c'était calme.",
+    "Encore quelqu'un qui a quelque chose à dire."
   ],
   "erreur": [
     "Ça devait arriver.",
@@ -23,7 +24,8 @@
     "C'est pas grave. Enfin, si, un peu.",
     "Respire. Moi je respire.",
     "Lis le message, des fois ça aide.",
-    "Au moins, ça plante avec conviction."
+    "Au moins, ça plante avec conviction.",
+    "Ça arrive aux meilleurs. Et à toi."
   ],
   "succes": [
     "Bon. Ça marche.",
@@ -35,7 +37,9 @@
     "On va dire que c'était prévu.",
     "Ne touche plus à rien.",
     "Voilà. On peut souffler.",
-    "Ça mérite presque un café."
+    "Ça mérite presque un café.",
+    "Bon. On fait comme si c'était facile.",
+    "Ça marche. Je suis aussi surprise que toi."
   ],
   "retour": [
     "T'étais où.",
@@ -47,7 +51,9 @@
     "Il s'est rien passé. Comme d'hab.",
     "Pile quand je m'endormais.",
     "Tu m'as manqué. Un peu. À peine.",
-    "Bon retour. Ou pas, on verra."
+    "Bon retour. Ou pas, on verra.",
+    "Te revoilà. {tickets} tickets aussi, d'ailleurs.",
+    "De retour. Les {tickets} tickets n'ont pas bougé."
   ],
   "clic": [
     "Oui.",
@@ -60,7 +66,13 @@
     "Encore toi.",
     "Pas un bouton, moi.",
     "Mm.",
-    "On se connaît."
+    "On se connaît.",
+    "J'écoute. Vaguement.",
+    "Oui, c'est moi. Toujours.",
+    "Tu voulais quelque chose ou c'est nerveux.",
+    "Coucou. Voilà, c'est fait.",
+    "Je suis là. Malheureusement pour toi.",
+    "{tickets} tickets ouverts et tu cliques sur moi."
   ],
   "endormissement": [
     "Réveille-moi s'il se passe un truc.",
@@ -71,7 +83,10 @@
     "Tu reviens quand tu veux. Ou pas.",
     "J'ai mérité ça.",
     "Mode veille. Le mien.",
-    "Si ça sonne, c'est pas pour moi."
+    "Si ça sonne, c'est pas pour moi.",
+    "Je pose les tentacules. Juste un moment.",
+    "Rien ne bouge. Moi non plus, du coup.",
+    "Je fais une pause. Toi, t'en fais une longue."
   ],
   "matin": [
     "Café d'abord.",
@@ -86,7 +101,11 @@
     "{heure}. Sérieux.",
     "{heure}. On est fous.",
     "À {heure}, déjà. Je dis ça, je dis rien.",
-    "Seulement {heure}. Ou déjà, ça dépend."
+    "Seulement {heure}. Ou déjà, ça dépend.",
+    "Bonjour. {tickets} tickets ouverts. Café d'abord.",
+    "{tickets} tickets t'attendent. Moi aussi, un peu.",
+    "On se réveille en douceur. Toi surtout.",
+    "Pas un mot avant le café. Ni après."
   ],
   "soir": [
     "Il est tard.",
@@ -97,7 +116,12 @@
     "Demain existe aussi, tu sais.",
     "Je vais pas tenir toute la nuit.",
     "Ça sent la dernière ligne de code. J'espère.",
-    "Le soleil a déjà abandonné."
+    "Le soleil a déjà abandonné.",
+    "Ça devient une habitude, de finir tard.",
+    "Le bureau est vide. Sauf nous.",
+    "On éteint à quelle heure, au juste.",
+    "Il est {heure}. Je dis ça pour toi.",
+    "Ce que tu fais là, ça tiendra jusqu'à demain."
   ],
   "vendredi": [
     "Vendredi. Tiens bon.",
@@ -107,7 +131,12 @@
     "Ça sent le week-end.",
     "Tu tiens le coup. Presque.",
     "Encore un effort.",
-    "Laisse ça pour lundi."
+    "Laisse ça pour lundi.",
+    "Vendredi. Rien ne part en prod, d'accord.",
+    "Encore un vendredi qui traîne.",
+    "Plus personne ne lit ses mails, là.",
+    "Ce qui n'est pas fini sera fini lundi.",
+    "Vendredi, {heure}. Ça compte comme le week-end."
   ],
   "commentaire": [
     "Rien à signaler.",
@@ -119,7 +148,37 @@
     "C'est long, une journée.",
     "Le pointeur bouge, c'est déjà ça.",
     "J'ai compté les pixels. Il en manque pas.",
-    "Pas grand-chose à dire. Je le dis quand même."
+    "Pas grand-chose à dire. Je le dis quand même.",
+    "Il fait calme. Trop calme.",
+    "J'observe. C'est mon métier.",
+    "Rien de neuf. Comme hier.",
+    "Je m'ennuie avec élégance.",
+    "Ton écran est très beau. Vu d'ici.",
+    "Il ne se passe rien et je le vis bien.",
+    "Huit bras, zéro tâche. L'équilibre.",
+    "Je médite. Enfin, je regarde le vide.",
+    "Tu tapes vite. Pour aller où.",
+    "Pas de nouvelles, bonnes nouvelles. Paraît-il.",
+    "Je pourrais ramper. Je vais pas le faire.",
+    "Je suis là, au cas où. Au cas où quoi.",
+    "On pourrait faire une pause. Moi, je suis déjà en pause.",
+    "J'ai rien demandé et je suis là quand même.",
+    "C'est fou ce qu'on s'habitue à l'ennui.",
+    "Il est {heure}. Je surveille l'horloge pour toi.",
+    "{heure}. La journée avance. Lentement.",
+    "Je compte les fenêtres ouvertes. Il y en a trop.",
+    "Un jour, je ferai quelque chose. Pas aujourd'hui.",
+    "Je n'ai pas d'avis. C'est reposant.",
+    "Tu as bu de l'eau, récemment.",
+    "Le pointeur est passé près de moi. Frisson.",
+    "Rien ne presse. Sauf peut-être ton truc, là.",
+    "J'ai vu passer un bug. Je dis rien.",
+    "Je suis décorative. C'est déjà un travail.",
+    "On s'entend bien, quand on se parle pas.",
+    "{tickets} tickets ouverts. Je préférais l'ignorer aussi.",
+    "Le temps passe. Moi, je reste.",
+    "Si quelqu'un demande, je travaille.",
+    "Il manque un café quelque part, je le sens."
   ],
   "agacee": [
     "Ça suffit, non.",
@@ -131,7 +190,11 @@
     "C'est un tic, chez toi.",
     "Et là, tu cherches quoi.",
     "Il y a d'autres icônes sur l'écran.",
-    "Ma patience a huit bras. Pas neuf."
+    "Ma patience a huit bras. Pas neuf.",
+    "Tu sais que je compte.",
+    "Ça devient personnel, là.",
+    "Encore. Vraiment.",
+    "J'ai des tentacules, pas de patience."
   ],
   "enervee": [
     "Bon. J'ai une batte.",
@@ -142,7 +205,12 @@
     "Voilà ce qui arrive.",
     "Ça, c'est pour les clics.",
     "Hop. Sans rancune. Enfin, un peu.",
-    "On en reparle dans une minute."
+    "On en reparle dans deux minutes. Peut-être.",
+    "Elle est pas lourde. Elle est dissuasive.",
+    "Je la sors pas souvent. Apprécie.",
+    "C'est une batte. De discussion.",
+    "Voilà. Maintenant on discute.",
+    "Tu as voulu jouer. On joue."
   ],
   "boude": [
     "Non.",
@@ -153,7 +221,27 @@
     "Occupée.",
     "Plus tard.",
     "On boude, là.",
-    "Rien."
+    "Rien.",
+    "Je la pose quand tu arrêtes.",
+    "Toujours là, la batte.",
+    "Clique encore. Je compte.",
+    "Non. J'ai les tentacules prises.",
+    "Je range rien tant que tu es là.",
+    "Laisse un message après la batte."
+  ],
+  "batte_rangee": [
+    "Bon. On oublie.",
+    "Rangée. Pour l'instant.",
+    "Je te surveille quand même.",
+    "La prochaine fois je préviens pas.",
+    "Trêve.",
+    "Ça va mieux. Pour moi.",
+    "C'est oublié. Pas pardonné.",
+    "La batte dort. Moi aussi, presque.",
+    "On recommence à zéro. Toi surtout.",
+    "Je la range. Je sais où elle est.",
+    "Paix provisoire.",
+    "D'accord. On reparle normalement."
   ],
   "deplacee": [
     "Pose-moi là. Non, là.",
@@ -164,7 +252,29 @@
     "Ici ou ailleurs, je m'ennuie pareil.",
     "Merci du voyage. Pas demandé.",
     "Encore un déménagement.",
-    "La vue était mieux là-bas."
+    "La vue était mieux là-bas.",
+    "Je ne suis pas un meuble.",
+    "Tu redécores, c'est ça.",
+    "Ah. Nouvelle adresse.",
+    "Je m'adapte. Lentement. De mauvaise grâce.",
+    "On aurait pu en discuter.",
+    "Ici. Bon. Si tu veux."
+  ],
+  "retour_maison": [
+    "J'étais mieux avant.",
+    "Non. Là-bas.",
+    "Je retourne là où j'étais. Merci.",
+    "C'était pas une proposition.",
+    "Tu avais rien demandé, moi non plus.",
+    "Je sais où j'habite.",
+    "On va dire que ça compte pas.",
+    "Même pas en rêve.",
+    "Je rentre. C'était bien, là-bas.",
+    "Ma place, c'est ma place.",
+    "Merci, mais non merci.",
+    "J'avais mes habitudes, là-bas.",
+    "Je reprends mon coin.",
+    "On se calme, je rentre."
   ],
   "patience": [
     "Deux minutes. Tu as tenu.",
@@ -174,7 +284,11 @@
     "Terminé. Tu peux respirer.",
     "Long, mais c'est passé.",
     "J'ai attendu avec toi. Enfin, à côté.",
-    "Voilà. Le ventilateur va se calmer."
+    "Voilà. Le ventilateur va se calmer.",
+    "Ça a fini par finir.",
+    "Tu peux reprendre une activité normale.",
+    "Le long truc est terminé. Applaudis-toi.",
+    "J'ai vieilli, mais c'est fini."
   ],
   "trop_de_notifs": [
     "Je coupe ?",
@@ -184,7 +298,11 @@
     "Encore dix. On respire ?",
     "Un peu de silence, ça te dirait ?",
     "C'est plus des notifs, c'est une averse.",
-    "On peut fermer le robinet. Clic droit."
+    "On peut fermer le robinet. Clic droit.",
+    "Ça déborde. Je ferme ?",
+    "Tout le monde a choisi maintenant. Je coupe ?",
+    "Tu es très demandée. Trop. Je coupe ?",
+    "Je n'arrive plus à suivre. Silence ?"
   ],
   "couche_tard": [
     "Moi, je dors. Fais comme tu veux.",
@@ -194,7 +312,11 @@
     "Au lit. Huit bras, une couette.",
     "Tu restes ? Moi non.",
     "Couvre-feu. Le mien.",
-    "Je te laisse la nuit."
+    "Je te laisse la nuit.",
+    "Je ferme boutique. Toi aussi, idéalement.",
+    "Rideau. Pour moi.",
+    "Je dors. Ne déploie rien.",
+    "Fin de service. La mienne."
   ],
   "pause": [
     "Bouge. Moi je bouge pas, mais toi bouge.",
@@ -204,7 +326,11 @@
     "Pause. Je dis ça pour ton dos.",
     "Un verre d'eau, peut-être.",
     "Même moi je m'étire, et j'ai pas d'os.",
-    "L'écran sera encore là dans cinq minutes."
+    "L'écran sera encore là dans cinq minutes.",
+    "Tes épaules te remercieront.",
+    "Va voir la fenêtre. La vraie.",
+    "Une pause, c'est pas de la paresse. Enfin, un peu.",
+    "Cinq minutes. Je compte."
   ],
   "musique": [
     "Encore ce morceau.",
@@ -214,7 +340,11 @@
     "Ah, {titre}. Si tu le dis.",
     "Je bats la mesure. Intérieurement.",
     "On change de disque. Enfin.",
-    "J'aurais pas choisi ça. Mais bon."
+    "J'aurais pas choisi ça. Mais bon.",
+    "Tiens, du nouveau.",
+    "{titre}. Audacieux.",
+    "Ça change. Pas forcément en mieux.",
+    "Je fais semblant d'aimer. {titre}."
   ],
   "silence": [
     "Ah. Le calme.",
@@ -222,7 +352,13 @@
     "Plus de musique. J'entends mes pensées.",
     "Le silence. Mon genre préféré.",
     "Enfin, on s'entend réfléchir.",
-    "Fin du concert. Je rends le casque."
+    "Fin du concert. Je rends le casque.",
+    "Plus de son. On respire.",
+    "La musique s'est tue. Moi pas.",
+    "Silence. J'allais le proposer.",
+    "Bon. On entend le ventilateur, maintenant.",
+    "C'est reposant, quand ça s'arrête.",
+    "Fin de la playlist. Pas trop tôt."
   ],
   "impatience": [
     "Ça charge. Je vois ça.",
@@ -231,7 +367,12 @@
     "Je tapote. Ça fait pas avancer, je sais.",
     "Trente secondes de points de suspension.",
     "La barre de progression prend son temps.",
-    "Si ça va plus vite en le fixant, dis-moi."
+    "Si ça va plus vite en le fixant, dis-moi.",
+    "Ça charge depuis un moment, là.",
+    "Je pourrais ramper plus vite que ça.",
+    "Tu penses que ça va finir aujourd'hui.",
+    "Patience. La mienne, elle, a fini.",
+    "Toujours en cours. Comme ma motivation."
   ],
   "enfin": [
     "Trois essais. Record battu.",
@@ -240,7 +381,12 @@
     "Il en aura fallu, des tentatives.",
     "Applaudissements. Polis, mais quand même.",
     "Après tout ça, ça passe. Comme quoi.",
-    "Je savais que t'y arriverais. Vers la fin."
+    "Je savais que t'y arriverais. Vers la fin.",
+    "Il fallait juste insister, en fait.",
+    "Victoire. Modeste, mais victoire.",
+    "On en parlera plus. Promis.",
+    "Ça passe. Je retire tout. Presque.",
+    "Le rouge, c'était pour le suspense."
   ],
   "fin_du_chut": [
     "On peut reparler.",
@@ -249,7 +395,12 @@
     "Retour du son. Pas trop fort.",
     "Fini de chuchoter.",
     "Ah. On a le droit de parler, maintenant.",
-    "J'avais des choses à dire, en plus."
+    "J'avais des choses à dire, en plus.",
+    "Les bannières sont revenues. Moi aussi.",
+    "Bon. On peut se reparler.",
+    "J'ai gardé tout ça pour moi. C'était dur.",
+    "Le monde peut te déranger à nouveau.",
+    "Reprise des commentaires. Désolée."
   ],
   "perplexe": [
     "Encore lui.",
@@ -258,6 +409,232 @@
     "Même erreur. Même tête.",
     "On tourne en rond, là.",
     "Il a l'air de se plaire ici, ce message.",
-    "Tu as essayé de lire ce qu'il dit."
+    "Tu as essayé de lire ce qu'il dit.",
+    "Je l'ai déjà vu, celui-là.",
+    "C'est le même. Encore.",
+    "Peut-être qu'il veut dire quelque chose.",
+    "Il revient comme un boomerang.",
+    "Je me gratte la tête. Toi, lis le message."
+  ],
+  "cerveau_absent": [
+    "Pas de clé, pas de conversation.",
+    "Je réfléchis pas gratuitement.",
+    "Branche-moi d'abord.",
+    "Mon cerveau est en option.",
+    "Silence radio. Volontaire.",
+    "Je pense pas. Pas sans démon.",
+    "Le cerveau n'est pas branché.",
+    "Personne à la maison, là-haut.",
+    "Je réponds pas. Je peux pas.",
+    "Rien. Le démon dort.",
+    "Il manque une pièce. Celle qui réfléchit.",
+    "Pas de réponse. Pas de démon."
+  ],
+  "cerveau_fatigue": [
+    "Assez parlé pour aujourd'hui.",
+    "Quota. Reviens demain.",
+    "J'ai dit tout ce que j'avais à dire. Pour ce mois.",
+    "Non. Budget.",
+    "J'ai trop parlé aujourd'hui.",
+    "Plus de mots en stock. Demain.",
+    "Mon quota est épuisé. Moi aussi.",
+    "Budget atteint. Je me tais.",
+    "On reprend demain. Promis.",
+    "J'ai dit tout ce que j'avais à dire.",
+    "Fermé pour aujourd'hui.",
+    "C'est assez. Pour moi."
+  ],
+  "cerveau_panne": [
+    "Rien ne vient. Comme toi le lundi.",
+    "Ligne occupée.",
+    "J'ai perdu le fil. Ça arrive.",
+    "Réessaie. Ou pas.",
+    "Ça veut pas.",
+    "Je cherche. Je trouve pas.",
+    "Rien. Le vide.",
+    "Ça a coupé.",
+    "Je reviens vers toi. Plus tard.",
+    "Panne d'inspiration. Réelle.",
+    "Le message s'est perdu en route.",
+    "Pas de réponse. Je boude pas, je bugge."
+  ],
+  "depart": [
+    "Ça suffit. Je sors.",
+    "Trouve-toi une autre peluche.",
+    "Je reviens quand tu seras calmée. Ou pas.",
+    "Non. Dehors. Moi.",
+    "Je prends l'air. Toi, réfléchis.",
+    "Au revoir. Façon de parler.",
+    "Je vais voir ailleurs.",
+    "Débrouille-toi sans moi.",
+    "Je m'en vais. Lentement, mais je m'en vais.",
+    "Tu m'as perdue. Pour une minute.",
+    "Assez. À plus.",
+    "Je sors. Ne clique pas derrière moi."
+  ],
+  "retour_furieuse": [
+    "De retour. Pas pour toi.",
+    "J'ai réfléchi. Toujours fâchée.",
+    "Ne dis rien.",
+    "Une minute. C'est tout ce que tu vaux.",
+    "Revenue. Contre mon gré.",
+    "Je reprends ma place. Sans commentaire.",
+    "Ça m'a calmée. Un peu.",
+    "Me revoilà. Pas plus contente.",
+    "Une minute dehors. C'était court.",
+    "Je reviens pour le décor.",
+    "Revenue. Ne t'y habitue pas.",
+    "On efface pas tout. On recommence."
+  ],
+  "tache_terminee": [
+    "Ça a fini. Toi, par contre.",
+    "Terminé. Tu peux respirer. Moi je respirais déjà.",
+    "C'est fini, là-bas. Va voir.",
+    "{texte} : terminé. Enfin.",
+    "{texte} a fini. Pas trop tôt.",
+    "Fini. J'ai rien fait, mais je prends le crédit.",
+    "C'est fini. Ça a pris le temps.",
+    "{texte}, terminé. Je l'ai vu.",
+    "Un truc a fini quelque part. Bravo à lui.",
+    "Fini. Tu peux arrêter de vérifier.",
+    "{texte} a terminé. Toi, pas encore.",
+    "Ça a fini sans toi. Il fallait le dire."
+  ],
+  "attention": [
+    "On t'attend. Pas moi, quelqu'un d'autre.",
+    "Ça te demande un truc. Va voir.",
+    "Quelqu'un a besoin de toi. Je dis ça.",
+    "{texte} t'attend.",
+    "Psst. {texte}.",
+    "Ça bloque tant que tu réponds pas.",
+    "Ça attend une réponse.",
+    "{texte}. Ça te concerne.",
+    "On a besoin de toi. Encore.",
+    "Hé. {texte}.",
+    "Un truc attend que tu cliques.",
+    "Réveille-toi, on t'attend."
+  ],
+  "pipeline_echec": [
+    "Pipeline rouge sur {texte}. Classique.",
+    "{texte} : cassé. Je dis ça.",
+    "Rouge. Sur {texte}, en plus.",
+    "Le pipeline a dit non.",
+    "C'est rouge. Je regarde ailleurs.",
+    "Encore cassé. Je m'en doutais.",
+    "Le pipeline a craqué.",
+    "{texte} a planté. Pas moi.",
+    "Rouge sur {texte}. Je suis pas surprise.",
+    "Échec. On relance et on croise les tentacules.",
+    "Le CI a un avis. Il est négatif.",
+    "Encore rouge. La CI a de la constance."
+  ],
+  "ticket_nouveau": [
+    "{texte}. Pour toi. Bon courage.",
+    "Nouveau ticket : {texte}. Pas pour moi.",
+    "Tiens, {texte}. Ça tombe sur toi.",
+    "Un ticket de plus. Pour toi.",
+    "Nouveau ticket. Je l'ai pas lu, toi non plus.",
+    "Ça arrive. Un ticket. Courage.",
+    "Un nouveau ticket. Comme c'est original.",
+    "{texte}. Je te laisse le lire.",
+    "Arrivage de ticket : {texte}.",
+    "Encore un. Pour toi, évidemment.",
+    "Ticket entrant. Je l'ai pas vu.",
+    "{texte}. Bonne chance."
+  ],
+  "tickets_ouverts": [
+    "{texte} tickets ouverts. Je dis ça, je dis rien.",
+    "{texte} tickets. On commence par lequel.",
+    "Encore {texte} tickets ouverts. Ils vont pas se fermer tout seuls.",
+    "{texte}. Des tickets. Ouverts. Voilà.",
+    "Des tickets ouverts. Plein. Enfin, quelques-uns.",
+    "La pile de tickets est toujours là.",
+    "{texte} tickets. Ils ne vont pas se résoudre en les regardant.",
+    "{texte} ouverts. Je compte, c'est tout.",
+    "Toujours des tickets. Toujours ouverts.",
+    "{texte} tickets. Je dis ça pour l'ambiance.",
+    "Les tickets t'attendent. Patiemment, eux.",
+    "Ça fait {texte}. Pas zéro, en tout cas."
+  ],
+  "travail_non_commite": [
+    "Rien n'est commité. Je dis ça. {texte}.",
+    "{texte}. Un commit, ça te tuerait.",
+    "Du travail pas sauvé : {texte}. Courageux.",
+    "Ça traîne sans commit, tout ça.",
+    "Tu commites quand, au juste.",
+    "{texte}. Si ça plante, je dirai rien."
+  ],
+  "machine": [
+    "{texte}. La machine fatigue aussi.",
+    "{texte}. Je dis ça, je dis rien.",
+    "La machine se plaint : {texte}.",
+    "Ton ordinateur a un souci. Pas moi.",
+    "Ça chauffe quelque part. Ou ça se vide.",
+    "{texte}. Fais quelque chose. Moi, je peux pas."
+  ],
+  "agenda": [
+    "{texte}. Tu y vas ou je dis que t'es malade.",
+    "Rendez-vous : {texte}. Je te préviens.",
+    "{texte}. Le temps de finir ta phrase.",
+    "Tu as un truc bientôt. Je dis ça.",
+    "L'agenda t'appelle. Pas moi.",
+    "{texte}. Courage. Prends un café avant."
+  ],
+  "fin_concentration": [
+    "C'est fini. Tu peux de nouveau te distraire.",
+    "Concentration terminée. J'ai tenu, moi.",
+    "Voilà. J'avais plein de choses à dire.",
+    "Fin du silence. Tu as fait quelque chose, au moins.",
+    "C'était long. Pour moi, en tout cas.",
+    "On peut se reparler. Si tu veux. Ou pas."
+  ],
+  "esquive": [
+    "Pardon, je gêne. Comme d'habitude.",
+    "Je me pousse. Ne te dérange pas.",
+    "Ah, c'était ta fenêtre. Pardon.",
+    "Je vais voir ailleurs si j'y suis.",
+    "Bon, je me décale.",
+    "Pas de place pour une pieuvre, je vois."
+  ],
+  "bilan": [
+    "Bilan : {notifs} notifs, {erreurs} erreurs. Journée normale, donc.",
+    "Aujourd'hui : {notifs} notifs, {succes} succès. On prend.",
+    "Erreurs : {erreurs}. Succès : {succes}. Je juge pas.",
+    "Tu m'as cliquée {clics} fois. Je note tout.",
+    "{notifs} notifs, {nudges} messages de scripts. Tout le monde parle.",
+    "Bilan : {erreurs} erreurs, {succes} succès, {clics} clics. Voilà.",
+    "Journée : {notifs} notifs. Moi, j'en ai lu zéro.",
+    "Résumé : {erreurs} plantages, {clics} clics sur moi. Équitable.",
+    "Rien à signaler. Suspect.",
+    "Journée calme. Trop calme.",
+    "Bilan : rien. Bravo, je crois."
+  ],
+  "tenue_fete": [
+    "Joyeux anniversaire. J'ai mis un chapeau. N'en parlons plus.",
+    "C'est mon anniversaire. Le chapeau, c'est pas moi qui l'ai choisi.",
+    "Un an de plus. Personne n'a apporté de gâteau, évidemment.",
+    "Oui, c'est un chapeau pointu. Oui, c'est aujourd'hui. Non, je chante pas.",
+    "Anniversaire. Je fais un effort de tenue, profites-en.",
+    "Pas de bougies, pas de discours. Juste le chapeau."
+  ],
+  "tenue_vendredi": [
+    "Vendredi soir. J'ai sorti le transat, je bouge plus.",
+    "Le bar de la pieuvre est ouvert. Enfin, pour moi.",
+    "Transat, verre, vendredi. Tout ce qu'il faut.",
+    "Moi, je suis en week-end. Toi, je sais pas.",
+    "Je trinque à ton dernier commit de la semaine.",
+    "Si quelqu'un parle de prod, je fais semblant de dormir."
+  ],
+  "tenue_hiver": [
+    "Il fait froid. D'où le bonnet. Pas de commentaire.",
+    "Bonnet de saison. Ne me regarde pas comme ça.",
+    "Huit tentacules et pas une écharpe. Alors le bonnet.",
+    "C'est l'hiver. Je me suis couverte, moi au moins."
+  ],
+  "tenue_ete": [
+    "Lunettes de soleil. C'est l'été, même derrière un écran.",
+    "Je ne te vois plus très bien. C'est voulu.",
+    "Il fait chaud. Je mets des lunettes et je ne fais rien.",
+    "Mode été activé. Rien d'autre ne change."
   ]
 }

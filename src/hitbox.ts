@@ -26,6 +26,11 @@ export class Hitbox {
         this.follow();
     }
 
+    /** Out of reach takes no clicks at all: no menu, no drag, no pestering. */
+    setReachable(reachable: boolean): void {
+        this.actor.reactive = reachable;
+    }
+
     destroy(): void {
         for (const id of this.spriteHandlerIds)
             this.sprite.actor.disconnect(id);

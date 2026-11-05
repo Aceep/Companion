@@ -13,3 +13,34 @@
     font-size: 13pt;
     max-width: 26em;
 }
+
+/* The box to talk to her: the bubble's colours, so it reads as part of her. */
+.crepe-prompt {
+    background-color: #f7f1e8;
+    border: 1px solid #010305;
+    border-radius: 10px;
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.crepe-prompt-entry {
+    width: 18em;
+    color: #1c1c1c;
+    background-color: #ffffff;
+    border: 1px solid #cfc6b8;
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 12pt;
+    caret-color: #1c1c1c;
+    selected-color: #ffffff;
+    selection-background-color: #3584e4;
+}
+
+.crepe-prompt-entry StLabel.hint-text {
+    color: rgba(28, 28, 28, 0.5);
+}
+
+.crepe-prompt-entry:insensitive {
+    color: rgba(28, 28, 28, 0.5);
+    background-color: #efe9df;
+}
