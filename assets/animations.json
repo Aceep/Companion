@@ -13,8 +13,8 @@
       150,
       600
     ],
-    "boucle": true,
-    "usage": "Attente par défaut, en boucle",
+    "boucle": false,
+    "usage": "Une respiration, jouée de temps en temps comme geste d'attente (la pose fixe est attente)",
     "planche": "respiration/respiration_planche.png"
   },
   "soupir": {
@@ -343,5 +343,206 @@
     "boucle": false,
     "usage": "Se gratte la tête : la même erreur revient pour la troisième fois",
     "planche": "gratter/gratter_planche.png"
+  },
+  "batte_tenue": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente pendant la bouderie : immobile, la batte tenue devant elle, dérivée de batte_08",
+    "planche": "batte_tenue/batte_tenue_planche.png"
+  },
+  "batte_clignement": {
+    "images": 4,
+    "taille": "80x80",
+    "durees_ms": [
+      40,
+      60,
+      110,
+      60
+    ],
+    "boucle": false,
+    "usage": "Clignement des yeux pendant la bouderie, la batte toujours en main",
+    "planche": "batte_clignement/batte_clignement_planche.png"
+  },
+  "batte_rangee": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      200
+    ],
+    "boucle": false,
+    "usage": "Fin de la bouderie : le swing à l'envers, elle range la batte derrière elle",
+    "planche": "batte_rangee/batte_rangee_planche.png"
+  },
+  "yeux_nord": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (en haut) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_nord/yeux_nord_planche.png"
+  },
+  "yeux_nord_est": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (en haut à droite) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_nord_est/yeux_nord_est_planche.png"
+  },
+  "yeux_est": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (à droite) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_est/yeux_est_planche.png"
+  },
+  "yeux_sud_est": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (en bas à droite) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_sud_est/yeux_sud_est_planche.png"
+  },
+  "yeux_sud": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (en bas) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_sud/yeux_sud_planche.png"
+  },
+  "yeux_sud_ouest": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (en bas à gauche) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_sud_ouest/yeux_sud_ouest_planche.png"
+  },
+  "yeux_ouest": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (à gauche) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_ouest/yeux_ouest_planche.png"
+  },
+  "yeux_nord_ouest": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente, les yeux tournés vers la souris (en haut à gauche) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "yeux_nord_ouest/yeux_nord_ouest_planche.png"
+  },
+  "batte_yeux_nord": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (en haut) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_nord/batte_yeux_nord_planche.png"
+  },
+  "batte_yeux_nord_est": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (en haut à droite) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_nord_est/batte_yeux_nord_est_planche.png"
+  },
+  "batte_yeux_est": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (à droite) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_est/batte_yeux_est_planche.png"
+  },
+  "batte_yeux_sud_est": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (en bas à droite) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_sud_est/batte_yeux_sud_est_planche.png"
+  },
+  "batte_yeux_sud": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (en bas) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_sud/batte_yeux_sud_planche.png"
+  },
+  "batte_yeux_sud_ouest": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (en bas à gauche) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_sud_ouest/batte_yeux_sud_ouest_planche.png"
+  },
+  "batte_yeux_ouest": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (à gauche) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_ouest/batte_yeux_ouest_planche.png"
+  },
+  "batte_yeux_nord_ouest": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Bouderie, les yeux tournés vers la souris (en haut à gauche) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "batte_yeux_nord_ouest/batte_yeux_nord_ouest_planche.png"
   }
 }

@@ -1,0 +1,34 @@
+{
+  "masque_nuit": {
+    "usage": "Masque de nuit sur les yeux pendant qu'elle dort",
+    "calques": [{"fichier": "tenues/masque_nuit.png", "z": "devant", "suit_la_tete": true}],
+    "visible_pendant": ["endormie"],
+    "cache_pendant": []
+  },
+  "bonnet": {
+    "usage": "Bonnet de laine, du 1er décembre à fin février",
+    "calques": [{"fichier": "tenues/bonnet.png", "z": "devant", "suit_la_tete": true}],
+    "cache_pendant": ["ramper_*", "batte", "batte_rangee", "gratter"]
+  },
+  "lunettes": {
+    "usage": "Lunettes de soleil, du 21 juin au 1er septembre, de 11 h à 17 h",
+    "calques": [{"fichier": "tenues/lunettes.png", "z": "devant", "suit_la_tete": true}],
+    "cache_pendant": ["ramper_*", "facepalm", "chut", "batte", "batte_rangee", "endormie"]
+  },
+  "chapeau_fete": {
+    "usage": "Chapeau pointu, le jour de son anniversaire",
+    "calques": [{"fichier": "tenues/chapeau_fete.png", "z": "devant", "suit_la_tete": true}],
+    "cache_pendant": ["ramper_*", "batte", "batte_rangee", "gratter"]
+  },
+  "verre": {
+    "usage": "Un verre avec une paille, le vendredi soir, tenu par son tentacule de droite",
+    "calques": [{"fichier": "tenues/verre.png", "z": "devant"}],
+    "visible_pendant": ["attente", "clignement", "yeux_*", "regard_droite", "regard_gauche"],
+    "cache_pendant": []
+  },
+  "transat": {
+    "usage": "Un transat sous elle, le vendredi soir",
+    "calques": [{"fichier": "tenues/transat.png", "z": "derriere"}],
+    "cache_pendant": ["ramper_*"]
+  }
+}
