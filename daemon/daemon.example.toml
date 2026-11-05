@@ -1,0 +1,82 @@
+# Crêpe's brain settings. Copy to ~/.config/crepe/daemon.toml
+# (or $XDG_CONFIG_HOME/crepe/daemon.toml) and restart the daemon:
+#   systemctl --user restart crepe-daemon
+# Every key is optional; a missing file means all defaults.
+
+# Model used for replies.
+model = "claude-haiku-5-5"
+
+# Maximum API requests per day (Ask and Remark together). Past it, calls
+# fail with io.github.aceep.Crepe.Brain.Error.Budget until midnight.
+# 0 turns the API off entirely.
+daily_budget = 200
+
+# Whether Remark() may call the API for spontaneous remarks. Off, Remark()
+# always returns an empty string.
+remarks = false
+
+# Hard cap on reply length, in characters (minimum 20). The bubble is small.
+max_reply_chars = 160
+
+# Watchers ("guetteurs"): each one runs only when its section is present.
+# The GitLab and Redmine tokens go to the keyring, never here:
+#   python -m crepe_daemon --set-token gitlab    (a read_api token)
+#   python -m crepe_daemon --set-token redmine   (your API key, "My account")
+
+# Failed pipelines you triggered -> nudge "pipeline_echec".
+# [watchers.gitlab]
+# url = "https://gitlab.example.com"
+# Minutes between looks (minimum 1).
+# interval_minutes = 5
+# Paths with namespace. Without it: the 30 most recently active projects
+# you are a member of.
+# projects = ["team/app", "team/infra"]
+# false: nudge for failed pipelines of anyone, not only yours.
+# only_mine = true
+
+# Open issues assigned to you -> nudges "ticket_nouveau" and "tickets_ouverts".
+# [watchers.redmine]
+# url = "https://redmine.example.com"
+# interval_minutes = 10
+
+# Work left uncommitted or unpushed in local repos -> nudge "travail_non_commite".
+# git runs read-only (git status, git rev-list); nothing is fetched or written.
+# [watchers.git]
+# Required. Each path is a repo, or a folder whose direct children are repos
+# (50 repos at most). "~" is your home.
+# paths = ["~/perso", "/var/www/projet"]
+# Minutes between looks (minimum 1).
+# interval_minutes = 30
+# A repo nags once its changes (oldest modified tracked file, or when the
+# watcher first saw it dirty) or its unpushed commits are older than this,
+# then at most once per this many minutes (minimum 1).
+# nag_after_minutes = 120
+
+# Disk, battery and load of this machine -> nudge "machine".
+# [watchers.machine]
+# Minutes between looks (minimum 1).
+# interval_minutes = 5
+# Nudge when a disk is at least this full (0-100); again only after it went
+# 3 points under it, or once a day while it stays full.
+# disk_percent = 90
+# Paths whose filesystem is checked; two paths on the same disk nudge once.
+# disk_paths = ["/", "~"]
+# Nudge once when discharging under this percent (0-100); re-armed when
+# charging or 10 points above it. No battery: nothing.
+# battery_percent = 15
+# Nudge once when the 1-minute load stays above the CPU count at every look
+# for this many minutes.
+# load_minutes = 10
+
+# A published calendar link (ICS), for a calendar that is not in GNOME
+# Online Accounts, e.g. Outlook "Publish calendar" -> nudge "agenda".
+# The link contains its own secret: keep this file private (chmod 600). It
+# is never logged; errors name the host only.
+# [watchers.ics]
+# Required, http(s). webcal:// links work once changed to https://.
+# url = "https://outlook.office365.com/owa/calendar/.../calendar.ics"
+# Minutes between downloads (minimum 5).
+# interval_minutes = 15
+# Nudge for events starting within this many minutes (or within one
+# interval, if longer, so none slips between two looks).
+# warn_minutes = 10

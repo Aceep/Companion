@@ -1,0 +1,14 @@
+[Unit]
+Description=Crêpe's brain (D-Bus service io.github.aceep.Crepe.Brain)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=%h/.local/share/crepe/daemon
+ExecStart=%h/.local/share/crepe/daemon-venv/bin/python -m crepe_daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
