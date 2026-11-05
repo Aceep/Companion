@@ -1,0 +1,263 @@
+{
+  "notification": [
+    "Encore une.",
+    "Ça peut attendre, non.",
+    "Je dirais pas non à un peu de calme.",
+    "Quelqu'un a besoin de toi, apparemment.",
+    "Tu la lis ou je fais semblant de rien.",
+    "Elles arrivent toutes seules, c'est fou.",
+    "Ding. Voilà.",
+    "Toujours au mauvais moment.",
+    "On t'appelle. Pas moi, hein.",
+    "Une de plus dans la pile.",
+    "Pile quand c'était calme."
+  ],
+  "erreur": [
+    "Ça devait arriver.",
+    "Je dis rien.",
+    "On relance et on verra.",
+    "Classique.",
+    "Bon. Ben voilà.",
+    "J'ai rien vu.",
+    "Tu veux un câlin ou un débogueur.",
+    "C'est pas grave. Enfin, si, un peu.",
+    "Respire. Moi je respire.",
+    "Lis le message, des fois ça aide.",
+    "Au moins, ça plante avec conviction."
+  ],
+  "succes": [
+    "Bon. Ça marche.",
+    "Pas mal, pour une fois.",
+    "Je note.",
+    "Tiens, ça passe.",
+    "C'est vert. Profites-en.",
+    "Personne n'y croyait. Moi non plus.",
+    "On va dire que c'était prévu.",
+    "Ne touche plus à rien.",
+    "Voilà. On peut souffler.",
+    "Ça mérite presque un café."
+  ],
+  "retour": [
+    "T'étais où.",
+    "Je dormais pas.",
+    "Ah, te revoilà.",
+    "J'ai gardé l'écran. Rien n'a bougé.",
+    "De retour. Bien.",
+    "On reprend, j'imagine.",
+    "Il s'est rien passé. Comme d'hab.",
+    "Pile quand je m'endormais.",
+    "Tu m'as manqué. Un peu. À peine.",
+    "Bon retour. Ou pas, on verra."
+  ],
+  "clic": [
+    "Oui.",
+    "Quoi.",
+    "Je bosse, là.",
+    "C'est pour quoi.",
+    "Ça chatouille.",
+    "Présente.",
+    "Tu cliques pour le plaisir.",
+    "Encore toi.",
+    "Pas un bouton, moi.",
+    "Mm.",
+    "On se connaît."
+  ],
+  "endormissement": [
+    "Réveille-moi s'il se passe un truc.",
+    "Je ferme les yeux deux secondes.",
+    "Bon. Sieste.",
+    "Personne ne me cherche, de toute façon.",
+    "Cinq minutes. Peut-être dix.",
+    "Tu reviens quand tu veux. Ou pas.",
+    "J'ai mérité ça.",
+    "Mode veille. Le mien.",
+    "Si ça sonne, c'est pas pour moi."
+  ],
+  "matin": [
+    "Café d'abord.",
+    "Déjà.",
+    "Il est tôt, quand même.",
+    "Bonjour. Doucement.",
+    "On commence pas trop fort, d'accord.",
+    "Les yeux sont ouverts. Le reste suit.",
+    "Matin. J'avais oublié que ça existait.",
+    "Tu as dormi, toi.",
+    "Pas de réunion avant le café, j'espère.",
+    "{heure}. Sérieux.",
+    "{heure}. On est fous.",
+    "À {heure}, déjà. Je dis ça, je dis rien.",
+    "Seulement {heure}. Ou déjà, ça dépend."
+  ],
+  "soir": [
+    "Il est tard.",
+    "Tu comptes t'arrêter un jour.",
+    "La journée est finie. Elle le sait, elle.",
+    "Encore là.",
+    "On rentre, non.",
+    "Demain existe aussi, tu sais.",
+    "Je vais pas tenir toute la nuit.",
+    "Ça sent la dernière ligne de code. J'espère.",
+    "Le soleil a déjà abandonné."
+  ],
+  "vendredi": [
+    "Vendredi. Tiens bon.",
+    "Plus que quelques heures.",
+    "On déploie pas un vendredi. Je dis ça.",
+    "Le week-end est en vue.",
+    "Ça sent le week-end.",
+    "Tu tiens le coup. Presque.",
+    "Encore un effort.",
+    "Laisse ça pour lundi."
+  ],
+  "commentaire": [
+    "Rien à signaler.",
+    "Je pensais à rien.",
+    "On est bien, là.",
+    "Huit bras et rien à faire.",
+    "Calme plat.",
+    "Tu bosses, je surveille.",
+    "C'est long, une journée.",
+    "Le pointeur bouge, c'est déjà ça.",
+    "J'ai compté les pixels. Il en manque pas.",
+    "Pas grand-chose à dire. Je le dis quand même."
+  ],
+  "agacee": [
+    "Ça suffit, non.",
+    "Tu as fini.",
+    "Je suis pas un jouet.",
+    "Encore un clic et je dis quelque chose.",
+    "J'ai compris, merci.",
+    "On peut arrêter là.",
+    "C'est un tic, chez toi.",
+    "Et là, tu cherches quoi.",
+    "Il y a d'autres icônes sur l'écran.",
+    "Ma patience a huit bras. Pas neuf."
+  ],
+  "enervee": [
+    "Bon. J'ai une batte.",
+    "Tu l'auras cherché.",
+    "Dernier avertissement. Enfin, premier.",
+    "Recule.",
+    "Je préviens pas deux fois.",
+    "Voilà ce qui arrive.",
+    "Ça, c'est pour les clics.",
+    "Hop. Sans rancune. Enfin, un peu.",
+    "On en reparle dans une minute."
+  ],
+  "boude": [
+    "Non.",
+    "…",
+    "Pas maintenant.",
+    "Je t'entends pas.",
+    "Mm.",
+    "Occupée.",
+    "Plus tard.",
+    "On boude, là.",
+    "Rien."
+  ],
+  "deplacee": [
+    "Pose-moi là. Non, là.",
+    "J'étais bien, avant.",
+    "Tu me reposes où tu m'as prise.",
+    "On me déplace, on me demande pas.",
+    "Voilà. Délocalisée.",
+    "Ici ou ailleurs, je m'ennuie pareil.",
+    "Merci du voyage. Pas demandé.",
+    "Encore un déménagement.",
+    "La vue était mieux là-bas."
+  ],
+  "patience": [
+    "Deux minutes. Tu as tenu.",
+    "C'est fini, on dirait.",
+    "Ça a pris le temps que ça a pris.",
+    "Enfin. J'ai failli m'endormir.",
+    "Terminé. Tu peux respirer.",
+    "Long, mais c'est passé.",
+    "J'ai attendu avec toi. Enfin, à côté.",
+    "Voilà. Le ventilateur va se calmer."
+  ],
+  "trop_de_notifs": [
+    "Je coupe ?",
+    "Dix. Je compte, moi.",
+    "Ça fait beaucoup, là. Je coupe ?",
+    "Tout le monde veut te parler, on dirait.",
+    "Encore dix. On respire ?",
+    "Un peu de silence, ça te dirait ?",
+    "C'est plus des notifs, c'est une averse.",
+    "On peut fermer le robinet. Clic droit."
+  ],
+  "couche_tard": [
+    "Moi, je dors. Fais comme tu veux.",
+    "Il est l'heure. Pour moi, en tout cas.",
+    "Bonne nuit. Enfin, la mienne.",
+    "J'éteins. Mes yeux, pas ton écran.",
+    "Au lit. Huit bras, une couette.",
+    "Tu restes ? Moi non.",
+    "Couvre-feu. Le mien.",
+    "Je te laisse la nuit."
+  ],
+  "pause": [
+    "Bouge. Moi je bouge pas, mais toi bouge.",
+    "Lève-toi. Je garde l'écran.",
+    "Tes yeux. Pense à tes yeux.",
+    "Ça fait un moment. Va marcher.",
+    "Pause. Je dis ça pour ton dos.",
+    "Un verre d'eau, peut-être.",
+    "Même moi je m'étire, et j'ai pas d'os.",
+    "L'écran sera encore là dans cinq minutes."
+  ],
+  "musique": [
+    "Encore ce morceau.",
+    "Pas mal. Enfin, pour toi.",
+    "{titre}, donc.",
+    "Ça, c'est ton goût, pas le mien.",
+    "Ah, {titre}. Si tu le dis.",
+    "Je bats la mesure. Intérieurement.",
+    "On change de disque. Enfin.",
+    "J'aurais pas choisi ça. Mais bon."
+  ],
+  "silence": [
+    "Ah. Le calme.",
+    "C'est fini ? Dommage. Non.",
+    "Plus de musique. J'entends mes pensées.",
+    "Le silence. Mon genre préféré.",
+    "Enfin, on s'entend réfléchir.",
+    "Fin du concert. Je rends le casque."
+  ],
+  "impatience": [
+    "Ça charge. Je vois ça.",
+    "On attend. Ensemble, c'est mieux.",
+    "Toujours pas.",
+    "Je tapote. Ça fait pas avancer, je sais.",
+    "Trente secondes de points de suspension.",
+    "La barre de progression prend son temps.",
+    "Si ça va plus vite en le fixant, dis-moi."
+  ],
+  "enfin": [
+    "Trois essais. Record battu.",
+    "Bravo. Je dis ça sans ironie. Presque.",
+    "On y croyait plus.",
+    "Il en aura fallu, des tentatives.",
+    "Applaudissements. Polis, mais quand même.",
+    "Après tout ça, ça passe. Comme quoi.",
+    "Je savais que t'y arriverais. Vers la fin."
+  ],
+  "fin_du_chut": [
+    "On peut reparler.",
+    "Le silence, c'était bien aussi.",
+    "Je reprends la parole. Doucement.",
+    "Retour du son. Pas trop fort.",
+    "Fini de chuchoter.",
+    "Ah. On a le droit de parler, maintenant.",
+    "J'avais des choses à dire, en plus."
+  ],
+  "perplexe": [
+    "Encore lui.",
+    "Troisième fois. C'est pas de la malchance.",
+    "Je commence à le connaître, celui-là.",
+    "Même erreur. Même tête.",
+    "On tourne en rond, là.",
+    "Il a l'air de se plaire ici, ce message.",
+    "Tu as essayé de lire ce qu'il dit."
+  ]
+}

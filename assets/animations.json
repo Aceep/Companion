@@ -1,0 +1,347 @@
+{
+  "respiration": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      150,
+      600
+    ],
+    "boucle": true,
+    "usage": "Attente par défaut, en boucle",
+    "planche": "respiration/respiration_planche.png"
+  },
+  "soupir": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      300,
+      140,
+      140,
+      140,
+      600,
+      140,
+      140,
+      140,
+      140
+    ],
+    "boucle": false,
+    "usage": "De temps en temps pendant l'attente",
+    "planche": "soupir/soupir_planche.png"
+  },
+  "endormie": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      400,
+      220,
+      220,
+      220,
+      220,
+      220,
+      220,
+      220,
+      220
+    ],
+    "boucle": false,
+    "usage": "Après un long moment sans activité ; ensuite boucler les images 5 à 8",
+    "planche": "endormie/endormie_planche.png",
+    "boucle_fin": [
+      5,
+      8
+    ]
+  },
+  "baillement": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      300,
+      140,
+      140,
+      140,
+      140,
+      500,
+      140,
+      140,
+      140
+    ],
+    "boucle": false,
+    "usage": "De temps en temps pendant l'attente",
+    "planche": "baillement/baillement_planche.png"
+  },
+  "regard_droite": {
+    "images": 6,
+    "taille": "80x80",
+    "durees_ms": [
+      600,
+      90,
+      90,
+      1200,
+      90,
+      600
+    ],
+    "boucle": false,
+    "usage": "Regard vers la souris (à droite)",
+    "planche": "regard_droite/regard_droite_planche.png"
+  },
+  "regard_gauche": {
+    "images": 6,
+    "taille": "80x80",
+    "durees_ms": [
+      600,
+      90,
+      90,
+      1200,
+      90,
+      600
+    ],
+    "boucle": false,
+    "usage": "Regard vers la souris (à gauche)",
+    "planche": "regard_gauche/regard_gauche_planche.png"
+  },
+  "pouce": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      140,
+      140,
+      140,
+      140,
+      140,
+      500,
+      140,
+      140,
+      140
+    ],
+    "boucle": false,
+    "usage": "Tâche finie, téléchargement terminé",
+    "planche": "pouce/pouce_planche.png"
+  },
+  "facepalm": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      130,
+      130,
+      800,
+      130,
+      130,
+      130
+    ],
+    "boucle": false,
+    "usage": "Erreur, plantage",
+    "planche": "facepalm/facepalm_planche.png"
+  },
+  "sursaut": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      90,
+      90,
+      90,
+      90,
+      250,
+      90,
+      90,
+      90,
+      300
+    ],
+    "boucle": false,
+    "usage": "Nouvelle notification",
+    "planche": "sursaut/sursaut_planche.png"
+  },
+  "coucou": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      140,
+      140,
+      140,
+      140,
+      140,
+      140,
+      140,
+      140,
+      140
+    ],
+    "boucle": false,
+    "usage": "Quand tu reviens sur ton PC",
+    "planche": "coucou/coucou_planche.png"
+  },
+  "batte": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      300,
+      130,
+      130,
+      130,
+      200,
+      130,
+      500
+    ],
+    "boucle": false,
+    "usage": "Pour rire : un swing de baseball sans conviction",
+    "planche": "batte/batte_planche.png"
+  },
+  "ramper_droite": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130
+    ],
+    "boucle": true,
+    "usage": "Déplacement vers la droite, en boucle",
+    "planche": "ramper_droite/ramper_droite_planche.png"
+  },
+  "ramper_gauche": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130,
+      130
+    ],
+    "boucle": true,
+    "usage": "Déplacement vers la gauche, en boucle",
+    "planche": "ramper_gauche/ramper_gauche_planche.png"
+  },
+  "attente": {
+    "images": 1,
+    "taille": "80x80",
+    "durees_ms": [
+      1000
+    ],
+    "boucle": true,
+    "usage": "Attente par défaut : immobile, dérivée de respiration_00",
+    "planche": "attente/attente_planche.png"
+  },
+  "clignement": {
+    "images": 4,
+    "taille": "80x80",
+    "durees_ms": [
+      40,
+      60,
+      110,
+      60
+    ],
+    "boucle": false,
+    "usage": "Clignement des yeux toutes les quelques secondes pendant l'attente",
+    "planche": "clignement/clignement_planche.png"
+  },
+  "applaudissement": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      140,
+      140,
+      250,
+      140,
+      250,
+      140,
+      140,
+      130
+    ],
+    "boucle": false,
+    "usage": "Applaudissement sarcastique : un succès après plusieurs erreurs",
+    "planche": "applaudissement/applaudissement_planche.png"
+  },
+  "tapote": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      110,
+      110,
+      110,
+      110,
+      110,
+      110,
+      110,
+      110,
+      110
+    ],
+    "boucle": true,
+    "usage": "Tapote d'impatience, en boucle pendant un chargement long",
+    "planche": "tapote/tapote_planche.png"
+  },
+  "chut": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      250,
+      250,
+      250,
+      250,
+      130,
+      130
+    ],
+    "boucle": false,
+    "usage": "Chut : quand le mode Ne pas déranger s'active",
+    "planche": "chut/chut_planche.png"
+  },
+  "pointer": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      300,
+      300,
+      300,
+      300,
+      130,
+      130
+    ],
+    "boucle": false,
+    "usage": "Pointe du tentacule vers le côté d'une nouvelle notification ou fenêtre",
+    "planche": "pointer/pointer_planche.png"
+  },
+  "gratter": {
+    "images": 9,
+    "taille": "80x80",
+    "durees_ms": [
+      130,
+      130,
+      130,
+      150,
+      150,
+      150,
+      150,
+      130,
+      130
+    ],
+    "boucle": false,
+    "usage": "Se gratte la tête : la même erreur revient pour la troisième fois",
+    "planche": "gratter/gratter_planche.png"
+  }
+}

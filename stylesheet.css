@@ -1,0 +1,15 @@
+/* The sprite is a raw Clutter actor; only the speech bubble is themed. */
+
+.crepe-bubble {
+    background-color: #f7f1e8;
+    border: 1px solid #010305;
+    border-radius: 10px;
+    padding: 6px 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.crepe-bubble-text {
+    color: #1c1c1c;
+    font-size: 13pt;
+    max-width: 26em;
+}
