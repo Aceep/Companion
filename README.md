@@ -13,6 +13,12 @@ Sprites and animation timings come from Theo's `pieuvre_animations.zip`
 and are kept verbatim in `assets/`. See his brief for the style rules and
 the PixelLab recipe for new animations.
 
+She can also be drawn as someone else: a sprite pack is a folder of 80×80
+frames under the names below, chosen in the preferences, with its own
+name, word and lines. [PACKS.md](PACKS.md) (in French, for the people
+who draw them) says what a pack holds and `scripts/pack.py` creates,
+describes and checks one.
+
 ## Requirements
 
 - GNOME Shell 46 (Wayland or X11)
@@ -46,7 +52,10 @@ gnome-extensions enable crepe@aceep.github.io
 A "Crêpe" toggle in the quick settings menu hides or shows her without
 disabling the extension. Settings live in the extension's preferences:
 
-- size, and whether she is shown at all;
+- on the "Apparence" page, the sprite pack she is drawn from (Crêpe, or
+  a folder of `~/.local/share/crepe/packs`, see [PACKS.md](PACKS.md)),
+  what the extension makes of it, her size, and whether she is shown at
+  all;
 - minutes of inactivity before she falls asleep, and the hour after
   which she goes to bed by herself (0 turns it off, default 20);
 - minutes of continuous activity before she suggests a break (0 turns
@@ -538,7 +547,9 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 
 | Path | Role |
 | --- | --- |
-| `src/animations.ts` | Loads `assets/animations.json`, resolves frame files, adds mirrored variants |
+| `src/pack.ts` | What a sprite pack is: its manifest, the body box, the animations every pack needs and what stands in for the ones it lacks. No GNOME dependency, shared with the preferences |
+| `src/packs.ts` | The packs directory, reading a pack's manifest and animations, the fall-back to Crêpe when a pack cannot be used. Shared with the preferences |
+| `src/animations.ts` | Loads a pack's `animations.json`, resolves frame files, fills the pack's gaps with mirrors and stand-ins |
 | `src/player.ts` | Animation state machine: loops, one-shots, tail loops; tells a listener each animation that starts. No GNOME dependency |
 | `src/sprite.ts` | Clutter actor showing the current frame, nearest-neighbour upscaling, mirrored frames, layers over and under it, where her head is in each frame |
 | `src/outfit.ts` | Loads `assets/tenues.json`, and the outfit layers on the sprite shown per animation and moved with her head |
@@ -582,7 +593,27 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/prefs.ts` | Preferences window (libadwaita) |
 | `src/extension.ts` | Wires everything into the shell, cleans up on disable |
 | `schemas/` | GSettings schema, compiled at deploy time |
-| `scripts/` | Terminal hook for bash, deploy, nested-shell, blink-frame, menace-pose, eye-pose and placeholder-outfit helpers |
+| `scripts/` | Terminal hook for bash, deploy, nested-shell, blink-frame, menace-pose, eye-pose and placeholder-outfit helpers, and `pack.py` to create, describe and check a sprite pack |
+
+## Sprite packs
+
+`assets/` is itself a pack: `pack.json` names her and her word, and the
+animation names are the contract any other pack follows (`attente`,
+`clignement` and `marche_droite` required, the rest optional, see
+[PACKS.md](PACKS.md) for what she does without each). The `sprite-pack`
+setting names a folder of `~/.local/share/crepe/packs`; empty means
+Crêpe. A pack that cannot be read, or lacks a required animation, gives
+way to Crêpe with the reason in the journal, so she never leaves the
+screen over a bad pack. Changing the setting disables and enables the
+extension on the next idle tick; her spot, reminders and counters live
+in the settings and survive, a sulk under way does not.
+
+Another pack's character is not Crêpe: the toggle and the menu call it
+by the pack's name, its language repeats the pack's word, and its lines
+come from `assets/repliques_generiques.json` (the same events, no
+octopus in them) with the pack's own `repliques.json` taking over event
+by event. Outfits, ink and the toggle icon are the pack's when it has
+them and absent otherwise, and the preferences grey the matching rows.
 
 ## Animation metadata
 
