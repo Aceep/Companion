@@ -1,9 +1,10 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import {PACK_FRAME_SIZE} from './pack.js';
 import {IDLE_ANIMATION} from './player.js';
 
-export const FRAME_SIZE = 80;
+export const FRAME_SIZE = PACK_FRAME_SIZE;
 
 /**
  * Animations drawn facing one way only, played the other way with their

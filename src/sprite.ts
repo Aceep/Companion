@@ -3,13 +3,14 @@ import Cogl from 'gi://Cogl';
 import GdkPixbuf from 'gi://GdkPixbuf';
 
 import {FRAME_SIZE, type AnimationDef} from './animations.js';
+import {BODY_BOX} from './pack.js';
 
-/** Transparent sprite pixels above her head in the resting pose. */
-export const HEAD_PADDING = 20;
-/** Same below her tentacles. */
-export const FEET_PADDING = 12;
-/** Same on either side of her outer tentacles; the same width on both sides, so a mirrored frame lines up. */
-export const SIDE_PADDING = 12;
+/** Transparent sprite pixels above her head in the resting pose, the same for every pack. */
+export const HEAD_PADDING = BODY_BOX.top;
+/** Same below her feet. */
+export const FEET_PADDING = BODY_BOX.bottom;
+/** Same on either side of her body; the same width on both sides, so a mirrored frame lines up. */
+export const SIDE_PADDING = BODY_BOX.side;
 
 /** Where an extra layer goes, relative to her frame: drawn over her, or under her. */
 export type LayerDepth = 'front' | 'back';
