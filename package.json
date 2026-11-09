@@ -5,7 +5,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "test": "tsc -p tsconfig.test.json && node --test \"build/test/tests/*.test.js\"",
+    "test": "rm -rf build/test && tsc -p tsconfig.test.json && node --test \"build/test/tests/*.test.js\"",
     "deploy": "scripts/install.sh",
     "nested": "scripts/nested.sh"
   },

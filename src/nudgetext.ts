@@ -46,9 +46,12 @@ export function isNudgeKind(kind: string): kind is NudgeKind {
  * Control and format characters that are not whitespace: escapes, bells,
  * zero-width spaces and bidi overrides, which a script could use to make
  * her line read differently from what it holds. Tabs and newlines are
- * whitespace and become spaces instead.
+ * whitespace and become spaces instead. The zero-width joiner stays: it
+ * holds emoji sequences such as 👩‍💻 together, and dropping it would show
+ * their parts side by side. Variation selectors are marks, not format
+ * characters, so they are kept already.
  */
-const INVISIBLE = /(?!\s)[\p{Cc}\p{Cf}]/gu;
+const INVISIBLE = /(?![\s\u200D])[\p{Cc}\p{Cf}]/gu;
 
 /**
  * What a script sent, fit for her bubble: invisible characters dropped,

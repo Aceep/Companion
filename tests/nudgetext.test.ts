@@ -16,6 +16,10 @@ describe('oneLine', () => {
         assert.equal(oneLine('pi​pe​line', 60), 'pipeline');
     });
 
+    it('keeps the zero-width joiner and variation selector of an emoji sequence', () => {
+        assert.equal(oneLine('👩\u200D💻 ❤\uFE0F', 60), '👩\u200D💻 ❤\uFE0F');
+    });
+
     it('drops escape, bell and delete characters', () => {
         assert.equal(oneLine('\u001B[31mred\u0007\u007F', 60), '[31mred');
     });

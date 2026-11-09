@@ -59,7 +59,9 @@ function matches(pattern: RegExp | null, text: string): boolean {
  * One case-insensitive pattern matching any of `keywords` as a whole word,
  * or null when the list has none. A word ends at anything that is not a
  * letter or a digit in any script, so "test" stays out of "Latest" and
- * "échec" out of nothing, while "error:" and "[failed]" still count.
+ * "échec" out of nothing, while "error:" and "[failed]" still count. One
+ * trailing "s" is allowed before that end, since titles say "3 errors" and
+ * "tests passed" as often as the singular.
  */
 function wholeWordPattern(keywords: readonly string[]): RegExp | null {
     const alternatives = keywords
@@ -68,7 +70,7 @@ function wholeWordPattern(keywords: readonly string[]): RegExp | null {
         .map(escapeRegExp);
     if (alternatives.length === 0)
         return null;
-    return new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternatives.join('|')})(?![\\p{L}\\p{N}])`, 'iu');
+    return new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternatives.join('|')})s?(?![\\p{L}\\p{N}])`, 'iu');
 }
 
 function escapeRegExp(text: string): string {

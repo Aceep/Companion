@@ -44,7 +44,17 @@ describe('KeywordMatcher.classify', () => {
     });
 
     it('does not match an accented keyword followed by more letters', () => {
-        assert.equal(DEFAULTS.classify('Tests réussis'), null);
+        assert.equal(DEFAULTS.classify('Une réussite'), null);
+    });
+
+    it('matches the plural of a keyword', () => {
+        assert.equal(DEFAULTS.classify('3 errors'), 'facepalm');
+        assert.equal(DEFAULTS.classify('Tests réussis'), 'pouce');
+    });
+
+    it('does not match a keyword followed by an s and more letters', () => {
+        const matcher = new KeywordMatcher({error: ['error'], success: [], busy: []});
+        assert.equal(matcher.classify('errorsome'), null);
     });
 
     it('does not end a word at an accented letter', () => {
@@ -99,6 +109,11 @@ describe('KeywordMatcher.looksBusy', () => {
 
     it('matches a whole word', () => {
         assert.equal(DEFAULTS.looksBusy('make all'), true);
+    });
+
+    it('matches the plural of a busy keyword', () => {
+        assert.equal(DEFAULTS.looksBusy('running tests'), true);
+        assert.equal(DEFAULTS.looksBusy('3 tests left'), true);
     });
 });
 
