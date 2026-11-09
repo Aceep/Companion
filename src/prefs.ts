@@ -94,6 +94,7 @@ export default class CrepePreferences extends ExtensionPreferences {
         group.add(spinRow(settings, 'sleep-after-minutes', "S'endort après (minutes)", 'Sans activité clavier ni souris.', 1, 120));
         group.add(switchRow(settings, 'crawl', 'Se promène', 'De temps en temps, elle change de place à la même hauteur.'));
         group.add(switchRow(settings, 'talk', 'Parle', 'Lâche une courte remarque de temps en temps.'));
+        group.add(spinRow(settings, 'crepe-speech', 'Parle crêpe (%)', '0 : toujours en clair, 100 : toujours en crêpe, la phrase lisible en petit dessous', 0, 100));
         group.add(switchRow(settings, 'react-to-notifications', 'Réagit aux notifications', "Sursaute à l'arrivée ; facepalm ou pouce levé selon les mots-clés."));
         group.add(switchRow(settings, 'react-to-windows', 'Réagit aux titres de fenêtre', 'Surveille les mots-clés dans le titre de la fenêtre active.'));
         group.add(switchRow(settings, 'ink', "Crache de l'encre quand elle est furieuse", "Quelques taches sombres sur l'écran, qui s'effacent d'elles-mêmes. Aussi quand on la titille en pleine bouderie."));

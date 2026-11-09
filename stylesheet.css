@@ -14,6 +14,14 @@
     max-width: 26em;
 }
 
+/* The line in clear, under a line said in Crêpe. */
+.crepe-bubble-translation {
+    color: #6b6b6b;
+    font-size: 8pt;
+    max-width: 26em;
+    margin-top: 3px;
+}
+
 /* The box to talk to her: the bubble's colours, so it reads as part of her. */
 .crepe-prompt {
     background-color: #f7f1e8;

@@ -175,6 +175,17 @@ gnome-extensions prefs crepe@aceep.github.io
   Greetings get a remark about the hour now and then (morning, evening,
   Friday afternoon). The first greeting or click of the day, before ten,
   tells the time.
+  Most of the time she says it in Crêpe, the way a Pokémon only says its
+  name: every word becomes "crêpe" (`Crêpe` with a capital, `CRÊPE` in
+  capitals, sometimes `crêêêpe` in a long word or an exclamation), the
+  punctuation stays, and so do the values filled into the line (the
+  time, a track title, a script's text, a count) and any number. The
+  sentence in clear shows in small print under it. "Parle crêpe" sets
+  the share of lines said that way, 70 % by default (0: always in clear,
+  100: always in Crêpe). Lines whose words are the news are always in
+  clear: reminders, the evening recap and the weekly bilan, the meeting
+  summary, the facts of the week, and anything passed on as is (the
+  daemon's answers and remarks, `info` nudges).
 - At the tenth notification within an hour (then the twentieth...) she
   asks if she should mute them, and her menu offers "Couper les
   notifications" for five minutes. It turns notification banners off for
@@ -498,7 +509,8 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/mood.ts` | Annoyance score from clicks and moves, decay, sulking and storming off. No GNOME dependency |
 | `src/nudge.ts` | The `io.github.aceep.Crepe` D-Bus object scripts call (`Nudge`, `Remind`, `Ping`) |
 | `src/nudgetext.ts` | Nudge kinds, per-kind rate limit, text clean-up (invisible characters, one line, cut). No GNOME dependency |
-| `src/voice.ts` | Picks a line from `assets/repliques.json`: cooldown, odds, time of day, placeholders, the evening recap. No Clutter dependency |
+| `src/voice.ts` | Picks a line from `assets/repliques.json`: cooldown, odds, time of day, placeholders, the evening recap, whether it is said in Crêpe. No Clutter dependency |
+| `src/crepespeak.ts` | Rewrites a line in Crêpe, punctuation, filled values and numbers kept. No GNOME dependency |
 | `src/meeting.ts` | Screen sharing, microphone and camera signals from the shell |
 | `src/digest.ts` | What a meeting hides or silences, and the count of nudges she missed. No GNOME dependency |
 | `src/terminals.ts` | The terminal emulators whose focus silences `commande_longue`. No GNOME dependency |
@@ -507,7 +519,7 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/tracks.ts` | One music remark per track whichever source tells first. No GNOME dependency |
 | `src/ink.ts`, `src/inkspots.ts` | The ink splats on screen, and where they may fall (pure) |
 | `src/stats.ts` | Daily counters, their JSON in the `stats` setting, sums over days. No GNOME dependency, shared with the preferences |
-| `src/bubble.ts` | Speech bubble above her head, follows her and fades out on its own |
+| `src/bubble.ts` | Speech bubble above her head, with the line in clear in small print under a line said in Crêpe; follows her and fades out on its own |
 | `src/prompt.ts` | The box to type something to her, over her head, with a modal grab while open |
 | `src/brain.ts` | Conversation daemon on the session bus: name watch, calls, errors sorted by kind. No shell UI, shared with the preferences |
 | `src/context.ts` | Recent events and lines, and the context JSON sent with each question. No GNOME dependency |

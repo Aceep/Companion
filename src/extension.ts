@@ -41,7 +41,7 @@ import {TimerPool} from './timers.js';
 import {TrackGate} from './tracks.js';
 import {CrepeToggle} from './toggle.js';
 import {ErrorHistory, LongTasks, NotificationTally, errorKey} from './trackers.js';
-import {Voice, type TriggerEvent} from './voice.js';
+import {Voice, inClear, type TriggerEvent, type Utterance} from './voice.js';
 import {OUTFIT_LINES, activeOutfits, outfitsOwingALine, parseLineDays, type OutfitId} from './wardrobe.js';
 import {FocusedWindowWatcher, NewWindowWatcher, NotificationWatcher} from './watchers.js';
 
@@ -768,7 +768,8 @@ export default class CrepeExtension extends Extension {
         const event = kind === 'nag' ? 'pense_bete_relance' : kind === 'late' ? 'pense_bete_en_retard' : 'pense_bete';
         // Stored on one line and cut already, by the center.
         const texte = reminder.text;
-        const line = voice.pick(event, {texte, heure: clockLabel(new Date(reminder.at))}) ?? texte;
+        const told = voice.pick(event, {texte, heure: clockLabel(new Date(reminder.at))});
+        const line = told ? inClear(told) : texte;
         if (presence.isHidden)
             presence.comeBack();
         behaviour.nudged({kind: 'pense_bete', gesture: 'tapote', event: null, wakes: true});
@@ -814,11 +815,11 @@ export default class CrepeExtension extends Extension {
         if (!added.ok)
             return {ok: false, error: 'TooMany', message: `Déjà ${MAX_PENDING} pense-bêtes en attente : annules-en un d'abord.`};
         const line = voice.pick('pense_bete_ok', {quand: whenLabel(parsed.at, now), heure: clockLabel(parsed.at)});
-        return {ok: true, confirmation: line ?? plainConfirmation(parsed.at, now)};
+        return {ok: true, confirmation: line ? inClear(line) : plainConfirmation(parsed.at, now)};
     }
 
     /** Her answer to something the user just did: shown over a waiting reminder too, unless she is kept quiet. */
-    private say(line: string): void {
+    private say(line: Utterance | string): void {
         if (this.isShown() && !this.meetingState.silent)
             this.sayLine(line, true);
     }
@@ -1363,13 +1364,16 @@ export default class CrepeExtension extends Extension {
      * Every line she says goes through here, so the daemon knows what she
      * last said. A reminder waiting for a click holds the bubble: other
      * lines are dropped, unless `force` (an answer to what the user just did).
+     * A plain string is a line written to be read as is (the daemon's, a script's).
      */
-    private sayLine(line: string, force = false): void {
+    private sayLine(line: Utterance | string, force = false): void {
         if (!force && this.reminders?.isShowing)
             return;
+        const utterance = typeof line === 'string' ? {text: line, translation: null} : line;
         this.stats?.increment('talks');
-        this.bubble?.say(line);
-        this.behaviour?.recollection.noteLine(line);
+        this.bubble?.say(utterance.text, utterance.translation);
+        // The daemon reads what she said in clear: a context full of "crêpe" would tell it nothing.
+        this.behaviour?.recollection.noteLine(inClear(utterance));
     }
 
     /**

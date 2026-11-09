@@ -23,6 +23,16 @@ interface EaseableBoxLayout extends St.BoxLayout {
 type WrapMode = Clutter.Text['line_wrap_mode'];
 type EllipsizeMode = Clutter.Text['ellipsize'];
 
+/** Wraps on words, and never ellipsizes: a bubble line is read whole. */
+function wrappingLabel(styleClass: string): St.Label {
+    const label = new St.Label({style_class: styleClass});
+    label.clutter_text.line_wrap = true;
+    label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR as number as WrapMode;
+    // St.Label ellipsizes by default, which wins over wrapping.
+    label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE as number as EllipsizeMode;
+    return label;
+}
+
 /** What she shows while the daemon thinks; no reading time, it stays until the answer replaces it. */
 const PONDERING = '…';
 
@@ -35,6 +45,8 @@ const PONDERING = '…';
 export class SpeechBubble {
     readonly actor: St.BoxLayout;
     private readonly label: St.Label;
+    /** The line in clear, in small print under a line said in Crêpe. */
+    private readonly translationLabel: St.Label;
     private readonly sprite: CrepeSprite;
     private readonly timers: TimerPool;
     private readonly spriteHandlerIds: number[];
@@ -47,20 +59,19 @@ export class SpeechBubble {
         this.sprite = sprite;
         this.timers = timers;
 
-        this.label = new St.Label({style_class: 'crepe-bubble-text'});
-        this.label.clutter_text.line_wrap = true;
-        this.label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR as number as WrapMode;
-        // St.Label ellipsizes by default, which wins over wrapping.
-        this.label.clutter_text.ellipsize = Pango.EllipsizeMode.NONE as number as EllipsizeMode;
+        this.label = wrappingLabel('crepe-bubble-text');
+        this.translationLabel = wrappingLabel('crepe-bubble-translation');
+        this.translationLabel.visible = false;
 
         // Hidden through opacity only: the layout manager owns `visible` for
         // chrome that tracks fullscreen, and flips it back on whenever a
         // fullscreen window goes away.
-        this.actor = new St.BoxLayout({style_class: 'crepe-bubble', opacity: 0});
-        // A horizontal box asks for its height first, for no width in particular,
-        // so a wrapped line got one row of background and spilled out below it.
+        this.actor = new St.BoxLayout({style_class: 'crepe-bubble', opacity: 0, vertical: true});
+        // Asked for its height first, for no width in particular, the box gave
+        // a wrapped line one row of background and let it spill out below.
         this.actor.request_mode = Clutter.RequestMode.HEIGHT_FOR_WIDTH;
         this.actor.add_child(this.label);
+        this.actor.add_child(this.translationLabel);
         Main.layoutManager.addTopChrome(this.actor, {
             affectsInputRegion: false,
             affectsStruts: false,
@@ -77,10 +88,15 @@ export class SpeechBubble {
         return this.showing;
     }
 
-    /** Shows `text`, replacing whatever she was saying, and restarts the reading time. */
-    say(text: string): void {
-        this.show(text);
-        this.cancelHide = this.timers.schedule(BASE_DISPLAY_MS + DISPLAY_MS_PER_CHARACTER * text.length, () => {
+    /**
+     * Shows `text`, replacing whatever she was saying, and restarts the
+     * reading time. A `translation` goes in small print under it; the
+     * reading time follows it then, since that is the line being read.
+     */
+    say(text: string, translation: string | null = null): void {
+        this.show(text, translation);
+        const read = translation ?? text;
+        this.cancelHide = this.timers.schedule(BASE_DISPLAY_MS + DISPLAY_MS_PER_CHARACTER * read.length, () => {
             this.cancelHide = null;
             this.fadeOut();
         });
@@ -141,10 +157,12 @@ export class SpeechBubble {
         this.actor.destroy();
     }
 
-    private show(text: string): void {
+    private show(text: string, translation: string | null = null): void {
         this.cancelHide?.();
         this.cancelHide = null;
         this.label.text = text;
+        this.translationLabel.text = translation ?? '';
+        this.translationLabel.visible = translation !== null;
         this.actor.remove_all_transitions();
         this.showing = true;
         this.reposition();

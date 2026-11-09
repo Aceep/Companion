@@ -32,6 +32,12 @@
       <summary>Let her talk</summary>
       <description>Show a short line from assets/repliques.json in a bubble above her now and then.</description>
     </key>
+    <key name="crepe-speech" type="i">
+      <range min="0" max="100"/>
+      <default>70</default>
+      <summary>Share of her lines said in Crêpe, with the sentence in small print below</summary>
+      <description>In percent. Every word becomes a "crêpe", values such as times, counts and titles aside; the line in clear shows in small print under it. Reminders, recaps, meeting summaries and replies from the daemon or from scripts are always in clear. 0 means always in clear, 100 always in Crêpe.</description>
+    </key>
     <key name="comment-interval-minutes" type="i">
       <range min="0" max="180"/>
       <default>30</default>

@@ -14,6 +14,7 @@ export type SettingsKey =
     | 'sleep-after-minutes'
     | 'crawl'
     | 'talk'
+    | 'crepe-speech'
     | 'react-to-notifications'
     | 'react-to-windows'
     | 'error-keywords'
@@ -89,6 +90,11 @@ export class CrepeSettings {
 
     set talk(value: boolean) {
         this.gsettings.set_boolean('talk', value);
+    }
+
+    /** Share, from 0 to 100, of her lines said in Crêpe with the sentence in clear below. */
+    get crepeSpeech(): number {
+        return this.gsettings.get_int('crepe-speech');
     }
 
     get reactToNotifications(): boolean {

@@ -1,5 +1,6 @@
 import type Gio from 'gi://Gio';
 
+import {crepify, shouldCrepify} from './crepespeak.js';
 import type {CrepeSettings} from './settings.js';
 
 const SECOND = 1000;
@@ -200,6 +201,35 @@ const INTERRUPTING_EVENTS: ReadonlySet<TriggerEvent> = new Set([
 /** Only greetings and plain clicks get a remark about the hour; a sulk does not chat about the weather. */
 const CONTEXT_EVENTS: ReadonlySet<TriggerEvent> = new Set(['retour', 'clic']);
 
+/**
+ * Lines whose words are the news: what a reminder is about and when, the
+ * day's and the week's counts, what scripts said during a meeting, a
+ * fact of the week brought up again. Said in Crêpe, the bubble's main
+ * line would carry nothing; they are always said in clear.
+ */
+const CLEAR_EVENTS: ReadonlySet<VoiceEvent> = new Set([
+    'pense_bete', 'pense_bete_relance', 'pense_bete_ok', 'pense_bete_incompris', 'pense_bete_en_retard',
+    'pense_bete_plein', 'bilan', 'bilan_semaine', 'reunion_fin_resume', 'rappel_pipeline', 'rappel_commandes',
+    'rappel_bouderie', 'rappel_focus',
+]);
+
+/**
+ * What she says: `text` goes in the bubble, and `translation` is the
+ * same line in clear when `text` is in Crêpe, null when it already is.
+ */
+export interface Utterance {
+    readonly text: string;
+    readonly translation: string | null;
+}
+
+/** The line as anyone can read it, whichever way she said it. */
+export function inClear(utterance: Utterance): string {
+    return utterance.translation ?? utterance.text;
+}
+
+/** The settings the voice reads; narrower than `CrepeSettings` so the tests can hand in a plain object. */
+export type VoiceSettings = Pick<CrepeSettings, 'talk' | 'crepeSpeech'>;
+
 /** How long a time-of-day remark keeps her from making another one. */
 const CONTEXT_COOLDOWN = 3 * HOUR;
 const CONTEXT_PROBABILITY = 0.6;
@@ -216,8 +246,10 @@ const decoder = new TextDecoder('utf-8');
  * `speak()` returns the line, or null when she keeps quiet.
  */
 export class Voice {
-    private readonly settings: CrepeSettings;
+    private readonly settings: VoiceSettings;
     private readonly isBubbleShowing: () => boolean;
+    /** In [0, 1); injectable so tests can pin every draw. */
+    private readonly random: () => number;
     private lines = new Map<VoiceEvent, readonly string[]>();
     private readonly lastLine = new Map<VoiceEvent, string>();
     private lastSpokenAt = 0;
@@ -225,9 +257,10 @@ export class Voice {
     /** The day she last told the time, as "year-month-day". */
     private lastClockDay: string | null = null;
 
-    constructor(settings: CrepeSettings, isBubbleShowing: () => boolean) {
+    constructor(settings: VoiceSettings, isBubbleShowing: () => boolean, random: () => number = Math.random) {
         this.settings = settings;
         this.isBubbleShowing = isBubbleShowing;
+        this.random = random;
     }
 
     loadLines(assetsDir: Gio.File): void {
@@ -248,7 +281,8 @@ export class Voice {
 
     /**
      * A remark written elsewhere (the daemon's), under the rules of an idle
-     * one: the talk switch and the cooldown. Returns it, or null when she keeps quiet.
+     * one: the talk switch and the cooldown. Returns it, or null when she
+     * keeps quiet. Never in Crêpe: it was written to be read.
      */
     utter(line: string): string | null {
         if (!this.mayRemark)
@@ -259,7 +293,8 @@ export class Voice {
 
     /**
      * Something a script asked her to pass on as is: only the talk switch
-     * keeps it to herself. Returns it, or null when she keeps quiet.
+     * keeps it to herself. Returns it, or null when she keeps quiet. Never
+     * in Crêpe, since it is passed on as is.
      */
     relay(line: string): string | null {
         if (!this.settings.talk)
@@ -274,7 +309,7 @@ export class Voice {
      * bubble to be free rather than talk over something. Returns the line,
      * or null when she keeps quiet, so the caller can try again later.
      */
-    recap(counts: LineValues | null): string | null {
+    recap(counts: LineValues | null): Utterance | null {
         if (!this.settings.talk || this.isBubbleShowing())
             return null;
         const line = this.pickLine('bilan', counts ?? {}, counts === null ? null : 'any');
@@ -289,7 +324,7 @@ export class Voice {
      * the bubble say, since she was asked for it. Null only when no line
      * can be filled from `values`.
      */
-    pick(event: ToldEvent, values: LineValues = {}): string | null {
+    pick(event: ToldEvent, values: LineValues = {}): Utterance | null {
         const line = this.pickLine(event, values, null);
         if (line !== null)
             this.lastSpokenAt = Date.now();
@@ -302,7 +337,7 @@ export class Voice {
      * only the lines that use one of `values` (the bilan has others for
      * a week with nothing in it). Null when she keeps quiet.
      */
-    tell(event: ToldEvent, values: LineValues, needsValues: boolean): string | null {
+    tell(event: ToldEvent, values: LineValues, needsValues: boolean): Utterance | null {
         if (!this.settings.talk || this.isBubbleShowing())
             return null;
         const line = this.pickLine(event, values, needsValues ? 'any' : null);
@@ -315,7 +350,7 @@ export class Voice {
      * Lines with a placeholder missing from `values` are never picked.
      * Lines with `{tickets}` only one time in three when it is known.
      */
-    speak(event: TriggerEvent, values: LineValues = {}): string | null {
+    speak(event: TriggerEvent, values: LineValues = {}): Utterance | null {
         if (!this.settings.talk)
             return null;
         const now = Date.now();
@@ -325,7 +360,7 @@ export class Voice {
         } else if (now - this.lastSpokenAt < GLOBAL_COOLDOWN) {
             return null;
         }
-        if (Math.random() >= PROBABILITY[event])
+        if (this.random() >= PROBABILITY[event])
             return null;
 
         const date = new Date(now);
@@ -352,7 +387,7 @@ export class Voice {
         if (!CONTEXT_EVENTS.has(event) || now - this.lastContextAt < CONTEXT_COOLDOWN)
             return event;
         const context = timeOfDay(new Date(now));
-        if (context === null || Math.random() >= CONTEXT_PROBABILITY)
+        if (context === null || this.random() >= CONTEXT_PROBABILITY)
             return event;
         return context;
     }
@@ -361,11 +396,11 @@ export class Voice {
      * The time told wins over the tickets. Otherwise, with the tickets
      * known and the odds for it, a line about them if the event has one.
      */
-    private pickWithTickets(event: VoiceEvent, values: LineValues, tellsTime: boolean): string | null {
+    private pickWithTickets(event: VoiceEvent, values: LineValues, tellsTime: boolean): Utterance | null {
         const {tickets, ...withoutTickets} = values;
         if (tellsTime)
             return this.pickLine(event, withoutTickets, 'heure');
-        if (tickets !== undefined && Math.random() < TICKETS_MENTION_CHANCE) {
+        if (tickets !== undefined && this.random() < TICKETS_MENTION_CHANCE) {
             const line = this.pickLine(event, values, 'tickets');
             if (line !== null)
                 return line;
@@ -376,22 +411,33 @@ export class Voice {
     /**
      * A random line that `values` can fill, never the one she said last
      * time for the same event. `mention` keeps only lines using that
-     * placeholder, or using any placeholder at all for 'any'.
+     * placeholder, or using any placeholder at all for 'any'. Said in
+     * Crêpe as often as the setting asks, the filled values kept as is.
      */
-    private pickLine(event: VoiceEvent, values: LineValues, mention: Placeholder | 'any' | null): string | null {
+    private pickLine(event: VoiceEvent, values: LineValues, mention: Placeholder | 'any' | null): Utterance | null {
         const candidates = (this.lines.get(event) ?? []).filter(line =>
             placeholdersOf(line).every(name => values[name] !== undefined) && mentions(line, mention));
         const previous = this.lastLine.get(event);
         const fresh = candidates.length > 1 ? candidates.filter(line => line !== previous) : candidates;
-        const line = fresh[Math.floor(Math.random() * fresh.length)];
+        const line = fresh[Math.floor(this.random() * fresh.length)];
         if (line === undefined)
             return null;
         this.lastLine.set(event, line);
-        const filled = line.replace(PLACEHOLDER_PATTERN, (_match, name: Placeholder) => values[name] ?? '');
+        const filledValues: string[] = [];
+        const filled = line.replace(PLACEHOLDER_PATTERN, (_match, name: Placeholder) => {
+            const value = values[name] ?? '';
+            filledValues.push(value);
+            return value;
+        });
         // A cut `{texte}` already ends with an ellipsis: the line's own full stop would double it.
         // A line that opens on a placeholder ("{jour}, ...") still starts with a capital.
-        const sentence = filled.replace(/…\./g, '…');
-        return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+        const sentence = capitalised(filled.replace(/…\./g, '…'));
+        if (CLEAR_EVENTS.has(event) || !shouldCrepify(this.settings.crepeSpeech, this.random))
+            return {text: sentence, translation: null};
+        // A line opening on a placeholder gave that value a capital: it is kept as it now reads.
+        const opening = filledValues[0];
+        const keep = line.startsWith('{') && opening !== undefined ? [capitalised(opening), ...filledValues] : filledValues;
+        return {text: crepify(sentence, keep, this.random), translation: sentence};
     }
 }
 
@@ -405,6 +451,10 @@ function timeOfDay(date: Date): VoiceEvent | null {
     if (hour >= EVENING_STARTS_AT)
         return 'soir';
     return null;
+}
+
+function capitalised(text: string): string {
+    return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function hourOf(date: Date): number {
