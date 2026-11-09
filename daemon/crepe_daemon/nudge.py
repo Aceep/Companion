@@ -27,6 +27,10 @@ KINDS = frozenset(
         "travail_non_commite",
         "machine",
         "agenda",
+        "commande_echec",
+        "commande_longue",
+        "musique",
+        "musique_fin",
     }
 )
 

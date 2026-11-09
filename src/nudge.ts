@@ -4,6 +4,7 @@ import GLib from 'gi://GLib';
 const OBJECT_PATH = '/io/github/aceep/Crepe';
 const INTERFACE_NAME = 'io.github.aceep.Crepe';
 const UNKNOWN_KIND_ERROR = `${INTERFACE_NAME}.Error.UnknownKind`;
+const ERROR_PREFIX = `${INTERFACE_NAME}.Error`;
 
 /** A script stuck in a loop gets one reaction per kind every five seconds; the rest is dropped. */
 const NUDGE_EVERY_MS = 5 * 1000;
@@ -22,6 +23,10 @@ export const NUDGE_KINDS = [
     'travail_non_commite',
     'machine',
     'agenda',
+    'commande_echec',
+    'commande_longue',
+    'musique',
+    'musique_fin',
     'info',
 ] as const;
 
@@ -34,11 +39,19 @@ const INTERFACE_XML = `
       <arg type="s" name="kind" direction="in"/>
       <arg type="s" name="text" direction="in"/>
     </method>
+    <method name="Remind">
+      <arg type="s" name="when" direction="in"/>
+      <arg type="s" name="text" direction="in"/>
+      <arg type="s" name="confirmation" direction="out"/>
+    </method>
     <method name="Ping">
       <arg type="s" name="version" direction="out"/>
     </method>
   </interface>
 </node>`;
+
+/** What `Remind()` answers: her confirmation, or a D-Bus error (`BadTime`, `TooMany`) with a French message. */
+export type RemindOutcome = {ok: true; confirmation: string} | {ok: false; error: 'BadTime' | 'TooMany'; message: string};
 
 /** At most one nudge per kind per five seconds. Pure bookkeeping, timestamps come in. */
 export class NudgeLimiter {
@@ -57,14 +70,14 @@ export class NudgeLimiter {
 /**
  * The extension's own D-Bus object on the shell's connection, so any
  * script can reach her through `org.gnome.Shell`: `Nudge()` makes her
- * react, `Ping()` tells whether she is there. Unknown kinds are refused
+ * react, `Remind()` sets a reminder, `Ping()` tells whether she is there. Unknown kinds are refused
  * with a D-Bus error; nudges past the rate limit are accepted and dropped.
  */
 export class NudgeService {
     private readonly exported: Gio.DBusExportedObject;
     private readonly limiter = new NudgeLimiter();
 
-    constructor(version: string, onNudge: (kind: NudgeKind, text: string) => void) {
+    constructor(version: string, onNudge: (kind: NudgeKind, text: string) => void, onRemind: (when: string, text: string) => RemindOutcome) {
         this.exported = Gio.DBusExportedObject.wrapJSObject(INTERFACE_XML, {
             NudgeAsync: ([kind, text]: [string, string], invocation: Gio.DBusMethodInvocation) => {
                 if (!isNudgeKind(kind)) {
@@ -81,6 +94,19 @@ export class NudgeService {
                 } catch (error) {
                     console.warn(`Crêpe: nudge "${kind}" failed: ${error instanceof Error ? error.message : String(error)}`);
                 }
+            },
+            RemindAsync: ([when, text]: [string, string], invocation: Gio.DBusMethodInvocation) => {
+                let outcome: RemindOutcome;
+                try {
+                    outcome = onRemind(when, text);
+                } catch (error) {
+                    invocation.return_dbus_error(`${ERROR_PREFIX}.Failed`, error instanceof Error ? error.message : String(error));
+                    return;
+                }
+                if (outcome.ok)
+                    invocation.return_value(new GLib.Variant('(s)', [outcome.confirmation]));
+                else
+                    invocation.return_dbus_error(`${ERROR_PREFIX}.${outcome.error}`, outcome.message);
             },
             Ping: () => new GLib.Variant('(s)', [version]),
         });

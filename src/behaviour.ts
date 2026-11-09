@@ -98,6 +98,13 @@ export type FocusListener = (focusing: boolean) => void;
 /** Told each time something worth counting happens to her. */
 export type StatsListener = (counter: StatCounter) => void;
 
+/**
+ * Asked to spit ink when she loses her temper: `storm` as she leaves,
+ * `sulk` when poked while sulking. True when ink really came, which
+ * the poke's line then says.
+ */
+export type InkHandler = (reason: 'storm' | 'sulk') => boolean;
+
 /** Where an idle remark may come from instead of the written lines: the conversation daemon. */
 export interface RemarkSource {
     /** Null when it is not there to ask, or not allowed to; resolves to "" when it has nothing to say, and she says nothing. */
@@ -137,6 +144,9 @@ export class IdleBehaviour implements GazeHolder {
     private stormHandler: StormHandler | null = null;
     private focusListener: FocusListener = () => {};
     private countStat: StatsListener = () => {};
+    private inkHandler: InkHandler = () => false;
+    /** She has already spat ink in this sulk: once is a gesture, twice is a habit. */
+    private inkedThisSulk = false;
     /** Writable so a test can bring her back sooner. */
     furiousAbsenceMs = FURIOUS_ABSENCE;
 
@@ -171,6 +181,8 @@ export class IdleBehaviour implements GazeHolder {
     private wokeWhileAway = false;
     /** Perched on a window, a crawl of her own would walk off it. */
     private crawlAllowed = true;
+    /** In a call: every line is kept to herself, like with banners off. */
+    private quiet = false;
     private hushed = false;
     private bedtimeAllowedAt = 0;
     /** Where she was picked up, for the drop to decide whether she crawls back there. */
@@ -255,6 +267,11 @@ export class IdleBehaviour implements GazeHolder {
         return this.hushed;
     }
 
+    /** A meeting is on: no line at all until it is over. The routine and the gestures go on. */
+    setQuiet(quiet: boolean): void {
+        this.quiet = quiet;
+    }
+
     get moodLevel(): MoodLevel {
         return this.mood.level;
     }
@@ -306,6 +323,15 @@ export class IdleBehaviour implements GazeHolder {
         this.countStat = listener;
     }
 
+    setInkHandler(handler: InkHandler): void {
+        this.inkHandler = handler;
+    }
+
+    /** A reminder of hers went unanswered: one more point of annoyance, short of a sulk. */
+    irritate(): void {
+        this.mood.irritate();
+    }
+
     /**
      * Starts a focus session of `ms`, or ends the current one with a word
      * when `ms` is 0 or less. Starting one while in one restarts its clock.
@@ -327,6 +353,7 @@ export class IdleBehaviour implements GazeHolder {
         if (this.focusing)
             return true;
         this.focusing = true;
+        this.countStat('focus');
         this.cancelFidget?.();
         this.cancelFidget = null;
         this.cancelCrawl?.();
@@ -604,7 +631,8 @@ export class IdleBehaviour implements GazeHolder {
         this.recollection.noteEvent(reaction.kind);
         if (!this.running || this.away || this.dragging)
             return false;
-        if (this.focusing && reaction.kind !== 'attention')
+        // Only what is worth waking her for gets through a focus session.
+        if (this.focusing && !reaction.wakes)
             return false;
         const wakingUp = this.asleep;
         if (wakingUp) {
@@ -633,12 +661,17 @@ export class IdleBehaviour implements GazeHolder {
         // On an errand she has somewhere to be; a swing would leave her stranded halfway.
         if (!this.running || this.asleep || this.away || this.errand)
             return;
+        const wasSulking = this.mood.isSulking;
         const {level, becameAngry, becameFurious} = this.mood.poke(kind);
-        if (becameAngry)
+        if (becameAngry) {
             this.countStat('sulks');
+            this.inkedThisSulk = false;
+        }
         if (becameFurious)
             this.countStat('storms');
         if (becameFurious) {
+            this.inkHandler('storm');
+            this.inkedThisSulk = true;
             this.stormOff();
             return;
         }
@@ -646,13 +679,17 @@ export class IdleBehaviour implements GazeHolder {
             this.swingBat();
             return;
         }
+        // Pestered mid-sulk, once per sulk, the line is the ink's.
+        const inked = wasSulking && !this.inkedThisSulk && this.inkHandler('sulk');
+        if (inked)
+            this.inkedThisSulk = true;
         // Going back is her answer to the drop; it comes with its own line instead of the usual one.
         const goingBack = origin !== null && this.goBackIfHomesick(origin, level);
         if (this.mood.isSulking) {
             // The poke pushed the end of the sulk back.
             this.scheduleSulkEnd();
             if (!goingBack)
-                this.say(kind === 'click' ? 'boude' : 'deplacee');
+                this.say(inked ? 'encre' : kind === 'click' ? 'boude' : 'deplacee');
             return;
         }
         if (goingBack)
@@ -882,7 +919,7 @@ export class IdleBehaviour implements GazeHolder {
         // Kept even when she keeps quiet: it still happened.
         if (note)
             this.recollection.noteEvent(event);
-        if (this.hushed)
+        if (this.hushed || this.quiet)
             return;
         this.onEvent(event, values);
     }
@@ -959,7 +996,7 @@ export class IdleBehaviour implements GazeHolder {
         const source = this.remarkSource;
         asked.then(line => {
             // The answer takes a while: she may have dozed off, left or been hushed since.
-            if (!this.running || this.asleep || this.away || this.hushed)
+            if (!this.running || this.asleep || this.away || this.hushed || this.quiet)
                 return;
             // Nothing to say is an answer too: she keeps quiet, like a bored octopus would.
             if (line.trim().length > 0 && source)

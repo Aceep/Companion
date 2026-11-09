@@ -86,6 +86,18 @@ export class SpeechBubble {
         });
     }
 
+    /** Shows `text` and keeps it there until `dismiss()`, `hide()` or another line: a reminder waits for her to be clicked. */
+    stay(text: string): void {
+        this.show(text);
+    }
+
+    /** Fades the line out now, whatever its reading time. */
+    dismiss(): void {
+        this.cancelHide?.();
+        this.cancelHide = null;
+        this.fadeOut();
+    }
+
     /** "…" until the next `say()` or `hide()`: she is waiting for the daemon's answer. */
     ponder(): void {
         this.show(PONDERING);

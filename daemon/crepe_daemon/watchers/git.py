@@ -124,7 +124,7 @@ class GitWatcher(Watcher):
                 text = f"{label} · {_plural(status.changed_files, 'fichier')} · {_age(now - since)}"
                 due.append((since, (KIND, text), key, "nagged_at"))
         unpushed_since = entry.get("unpushed_since")
-        if unpushed_since is not None and self._is_due(unpushed_since, entry.get("unpushed_nagged_at"), now):
+        if self.config.unpushed and unpushed_since is not None and self._is_due(unpushed_since, entry.get("unpushed_nagged_at"), now):
             count = status.unpushed_commits or 0
             text = f"{label} · {count} commit{'s' if count > 1 else ''} pas poussé{'s' if count > 1 else ''}"
             due.append((unpushed_since, (KIND, text), key, "unpushed_nagged_at"))

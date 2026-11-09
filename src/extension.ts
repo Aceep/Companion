@@ -13,24 +13,31 @@ import {IdleBehaviour, type NudgeReaction, type ReactionOptions} from './behavio
 import {Brain, BrainError, type BrainErrorKind} from './brain.js';
 import {SpeechBubble} from './bubble.js';
 import {contextJson} from './context.js';
+import {MeetingDigest, meetingMode, type MeetingMode} from './digest.js';
 import {Dodger} from './dodge.js';
 import {DragHandler} from './drag.js';
 import {EyesFollower} from './gaze.js';
 import {Hitbox} from './hitbox.js';
+import {InkSplatter} from './ink.js';
 import {classify, containsKeyword, looksLikeWaiting, type Reaction} from './keywords.js';
 import {SpriteLayer} from './layer.js';
 import {CrepeMenu} from './menu.js';
+import {MeetingMonitor} from './meeting.js';
+import {pickGag, weekBilanDue, weekResume} from './memory.js';
 import {MusicWatcher} from './music.js';
-import {INFO_MAX, NudgeService, TEXT_IN_LINE_MAX, oneLine, ticketCount, type NudgeKind} from './nudge.js';
+import {INFO_MAX, NudgeService, TEXT_IN_LINE_MAX, oneLine, ticketCount, type NudgeKind, type RemindOutcome} from './nudge.js';
 import {OutfitLayer, loadOutfits} from './outfit.js';
 import {AnimationPlayer} from './player.js';
 import {Positioner, type Side} from './positioner.js';
 import {Presence} from './presence.js';
 import {PromptBox} from './prompt.js';
+import {MAX_PENDING, REMINDER_EXAMPLE, ReminderCenter, clockLabel, parseReminderRequest, plainConfirmation, whenLabel, type DeliveryKind, type Reminder} from './reminders.js';
 import {CrepeSettings, TALK_SHORTCUT_KEY} from './settings.js';
 import {CrepeSprite, HEAD_PADDING} from './sprite.js';
 import {StatsStore, dayKey} from './stats.js';
+import {isTerminal} from './terminals.js';
 import {TimerPool} from './timers.js';
+import {TrackGate} from './tracks.js';
 import {CrepeToggle} from './toggle.js';
 import {ErrorHistory, LongTasks, NotificationTally, errorKey} from './trackers.js';
 import {Voice, type TriggerEvent} from './voice.js';
@@ -53,6 +60,17 @@ const RECAP_CHECK_EVERY = 60 * 1000;
 const OUTFIT_CHECK_EVERY = 60 * 1000;
 /** An outfit just put on gets its line this long after, once whatever put it on has had its own say. */
 const OUTFIT_LINE_DELAY = 3 * 1000;
+/** A failed command in the terminal gets a reaction at most once a minute; a loop of `make` would be a show otherwise. */
+const COMMAND_FAILURE_EVERY = 60 * 1000;
+/** A call flickering (a muted microphone released, a stream restarted) is not the end of the meeting. */
+const MEETING_END_GRACE = 3 * 1000;
+/** A meeting shorter than this ending without news is not worth a word. */
+const MEETING_WORTH_A_WORD = 2 * 60 * 1000;
+/** The summary waits for her to be free (awake, at home, not focusing) this long, then is dropped as stale. */
+const SUMMARY_PATIENCE = 10 * 60 * 1000;
+const SUMMARY_RETRY_EVERY = 10 * 1000;
+/** A reminder's text, as it is quoted in her line. */
+const REMINDER_TEXT_MAX = 100;
 /** Sprite rows from her head's top to her eyes, in the resting pose. */
 const EYES_BELOW_HEAD = 22;
 
@@ -90,6 +108,18 @@ export default class CrepeExtension extends Extension {
     private brain: Brain | null = null;
     private prompt: PromptBox | null = null;
     private nudges: NudgeService | null = null;
+    private meeting: MeetingMonitor | null = null;
+    private meetingState: MeetingMode = {hidden: false, silent: false};
+    private readonly digest = new MeetingDigest();
+    private meetingStartedAt = 0;
+    /** The meeting is over and its line is still to be said. */
+    private summaryPending = false;
+    private summaryDeadline = 0;
+    private cancelMeetingEnd: (() => void) | null = null;
+    private cancelSummary: (() => void) | null = null;
+    private lastCommandFailureAt = 0;
+    /** Writable so a test can seat a terminal at the focus. */
+    private terminalFocused: () => boolean = () => this.focusedWindowIsTerminal();
     private shortcutAdded = false;
     /** The desktop's own notification settings, where banners are turned off. */
     private desktopNotifications: Gio.Settings | null = null;
@@ -114,6 +144,11 @@ export default class CrepeExtension extends Extension {
     private cancelOutfitLine: (() => void) | null = null;
     /** Writable so a test can dress her for any date. */
     private outfitClock: () => Date = () => new Date();
+    /** Writable so a test can make it any day for her memory of the week and the Friday bilan. */
+    private weekClock: () => Date = () => new Date();
+    private reminders: ReminderCenter | null = null;
+    private ink: InkSplatter | null = null;
+    private trackGate: TrackGate | null = null;
 
     override enable(): void {
         const settings = new CrepeSettings(this.getSettings());
@@ -151,6 +186,9 @@ export default class CrepeExtension extends Extension {
             centerX: () => sprite.actor.x + sprite.size / 2,
             scale: () => sprite.currentScale,
         }, (event, values) => {
+            // A fact of the past week comes up in place of the day's first idle remark.
+            if (event === 'commentaire' && this.recallFact())
+                return;
             // Any line may mention the open tickets; the voice decides how often.
             const tickets = this.behaviour?.recollection.openTickets ?? null;
             const line = voice.speak(event, tickets === null ? values : {tickets: String(tickets), ...values});
@@ -162,6 +200,7 @@ export default class CrepeExtension extends Extension {
         });
         behaviour.setStatsListener(counter => stats.increment(counter));
         behaviour.setFocusListener(focusing => this.focusChanged(focusing));
+        behaviour.setInkHandler(reason => this.throwInk(reason));
         const presence = new Presence(sprite, hitbox, positioner, behaviour, settings);
         this.eyes = new EyesFollower(behaviour, timers, {
             eyes: () => ({
@@ -196,9 +235,17 @@ export default class CrepeExtension extends Extension {
             forgetConversation: () => this.forgetConversation(),
             toggleFocus: () => this.toggleFocus(),
             isFocusing: () => behaviour.focusMode,
+            addReminder: input => this.addReminderFromMenu(input),
+            pendingReminders: () => this.pendingReminderLabels(),
+            cancelReminder: id => this.reminders?.cancel(id),
         });
         this.drag = new DragHandler(hitbox.actor, sprite.actor, {
             onClick: () => {
+                // A click is how she is told a reminder was seen; it is no pestering.
+                if (this.reminders?.acknowledge()) {
+                    bubble.dismiss();
+                    return;
+                }
                 // The sliver of her left at the edge is there to be clicked; out there a click is no pestering.
                 if (presence.isHidden) {
                     presence.comeBack();
@@ -242,7 +289,7 @@ export default class CrepeExtension extends Extension {
             else if (keyword === 'pouce')
                 stats.increment('successes');
             // Off-screen she sees nothing; focusing, she lets them go by.
-            if (!settings.reactToNotifications || presence.isAway || behaviour.focusMode)
+            if (!settings.reactToNotifications || presence.isAway || behaviour.focusMode || this.meetingState.silent)
                 return;
             const flooded = !behaviour.isHushed && tally.add(Date.now());
             const options: ReactionOptions = flooded ? {event: 'trop_de_notifs'} : {};
@@ -291,6 +338,8 @@ export default class CrepeExtension extends Extension {
         settings.onChanged('crawl-interval-minutes', () => behaviour.refresh());
         settings.onChanged('comment-interval-minutes', () => behaviour.refresh());
         settings.onChanged('stats', () => stats.settingChanged());
+        settings.onChanged('hide-during-screencast', () => this.syncMeeting());
+        settings.onChanged('quiet-during-calls', () => this.syncMeeting());
         settings.onChanged('focus-minutes', () => menu.syncFocus());
         settings.onChanged('perch', () => presence.refresh());
         settings.onChanged('eyes-follow', () => this.syncEyes());
@@ -298,6 +347,10 @@ export default class CrepeExtension extends Extension {
         settings.onChanged('layer', () => this.syncLayer());
         settings.onChanged('react-to-music', () => this.syncMusic());
         settings.onChanged('brain', () => this.syncBrain());
+        settings.onChanged('ink', () => {
+            if (!settings.ink)
+                this.ink?.clear();
+        });
         settings.onChanged('outfits', () => this.syncOutfits());
         settings.onChanged('outfit-override', () => this.syncOutfits());
         settings.onChanged('birthday', () => this.syncOutfits());
@@ -317,6 +370,20 @@ export default class CrepeExtension extends Extension {
         this.desktopNotifications = desktopNotifications;
         this.longTasks = longTasks;
         this.errors = new ErrorHistory();
+        this.ink = new InkSplatter(assetsDir, timers, () => this.themeScale());
+        this.trackGate = new TrackGate(() => this.music?.isPlaying === true);
+        this.reminders = new ReminderCenter({
+            read: () => settings.reminders,
+            write: json => {
+                settings.reminders = json;
+            },
+            schedule: timers.schedule,
+            now: () => Date.now(),
+            canDeliver: () => this.canDeliverReminder(),
+            deliver: (reminder, kind) => this.deliverReminder(reminder, kind),
+            ignored: () => this.reminderIgnored(),
+            changed: () => this.menu?.syncReminders(),
+        });
         // Banners may already be off: she starts hushed, without making a show of it.
         this.syncHush(false);
         this.syncMusic();
@@ -335,16 +402,37 @@ export default class CrepeExtension extends Extension {
         Main.wm.addKeybinding(TALK_SHORTCUT_KEY, settings.gsettings, Meta.KeyBindingFlags.NONE,
             Shell.ActionMode.NORMAL, () => this.openPrompt());
         this.shortcutAdded = true;
-        this.nudges = new NudgeService(String(this.metadata.version ?? ''), (kind, text) => this.nudge(kind, text));
+        // Settled before she is shown, so starting mid-call does not flash her on screen.
+        this.meeting = new MeetingMonitor(() => this.syncMeeting());
+        this.meetingState = this.currentMeetingMode();
+        behaviour.setQuiet(this.meetingState.silent);
+        this.nudges = new NudgeService(String(this.metadata.version ?? ''), (kind, text) => this.nudge(kind, text),
+            (when, text) => this.remind(when, text));
         this.scheduleRecapCheck();
         this.scheduleOutfitCheck();
         this.applyVisibility();
         this.syncOutfits();
+        // Last, so the overdue ones find her on stage.
+        this.reminders.start();
     }
 
     override disable(): void {
         this.nudges?.destroy();
         this.nudges = null;
+        this.reminders?.destroy();
+        this.reminders = null;
+        this.ink?.destroy();
+        this.ink = null;
+        this.trackGate = null;
+        this.meeting?.destroy();
+        this.meeting = null;
+        this.cancelMeetingEnd?.();
+        this.cancelMeetingEnd = null;
+        this.cancelSummary?.();
+        this.cancelSummary = null;
+        this.summaryPending = false;
+        this.meetingState = {hidden: false, silent: false};
+        this.digest.clear();
         this.cancelRecapCheck?.();
         this.cancelRecapCheck = null;
         this.cancelOutfitCheck?.();
@@ -446,7 +534,7 @@ export default class CrepeExtension extends Extension {
     private applyVisibility(): void {
         if (!this.settings || !this.layer || !this.behaviour || !this.presence)
             return;
-        if (this.settings.visible) {
+        if (this.isShown()) {
             if (!this.layer.isShown) {
                 this.layer.show(this.settings.layer);
                 this.positioner?.place();
@@ -458,7 +546,9 @@ export default class CrepeExtension extends Extension {
             return;
         }
         this.prompt?.close();
+        this.menu?.close();
         this.bubble?.hide();
+        this.ink?.clear();
         this.syncEyes();
         this.syncDodge();
         // Hidden for good means back home: showing her again should not find her off-screen.
@@ -471,7 +561,7 @@ export default class CrepeExtension extends Extension {
     private syncEyes(): void {
         if (!this.settings || !this.eyes)
             return;
-        if (this.settings.visible && this.settings.eyesFollow)
+        if (this.isShown() && this.settings.eyesFollow)
             this.eyes.start();
         else
             this.eyes.stop();
@@ -481,7 +571,7 @@ export default class CrepeExtension extends Extension {
     private syncDodge(): void {
         if (!this.settings || !this.dodger)
             return;
-        this.dodger.sync(this.settings.visible && this.settings.dodge && this.settings.layer === 'top');
+        this.dodger.sync(this.isShown() && this.settings.dodge && this.settings.layer === 'top');
     }
 
     /** Moved to the other layer where she stands; hidden, she goes there when shown again. */
@@ -553,11 +643,15 @@ export default class CrepeExtension extends Extension {
         const {settings, behaviour, presence, voice, stats} = this;
         if (!settings || !behaviour || !presence || !voice || !stats)
             return;
-        const now = new Date();
+        const now = this.weekClock();
         const today = dayKey(now);
+        const free = this.isShown() && !this.meetingState.silent && !behaviour.isAsleep && !presence.isAway && !behaviour.focusMode &&
+            !behaviour.isHushed && this.reminders?.isShowing !== true;
+        if (free && this.weekBilanIfDue(now))
+            return;
         if (!settings.recap || now.getHours() !== settings.recapHour || settings.lastRecapDate === today)
             return;
-        if (!settings.visible || behaviour.isAsleep || presence.isAway || behaviour.focusMode || behaviour.isHushed)
+        if (!free)
             return;
         const counts = stats.today(now);
         const told = [counts.notifications, counts.errors, counts.successes, counts.clicks, counts.nudges];
@@ -574,6 +668,139 @@ export default class CrepeExtension extends Extension {
         settings.lastRecapDate = today;
         behaviour.recollection.noteEvent('bilan');
         this.sayLine(line);
+    }
+
+    /** Friday from 17:00, once: the week's counters in one line. Called only when she is free to say it. */
+    private weekBilanIfDue(now: Date): boolean {
+        const {settings, behaviour, voice, stats} = this;
+        if (!settings || !behaviour || !voice || !stats || !weekBilanDue(now, settings.lastWeekBilan, settings.recap))
+            return false;
+        const resume = weekResume(stats.allDays(), now);
+        const line = voice.tell('bilan_semaine', resume === null ? {} : {resume}, resume !== null);
+        if (!line)
+            return false;
+        settings.lastWeekBilan = dayKey(now);
+        behaviour.recollection.noteEvent('bilan_semaine');
+        this.sayLine(line);
+        return true;
+    }
+
+    /**
+     * In place of an idle remark, at most once a day: the most notable
+     * thing of the last seven days. False when there is none, she already
+     * did today, or she is not let to talk.
+     */
+    private recallFact(): boolean {
+        const {settings, behaviour, voice, stats} = this;
+        if (!settings || !behaviour || !voice || !stats || !voice.mayRemark || this.reminders?.isShowing)
+            return false;
+        const now = this.weekClock();
+        const today = dayKey(now);
+        if (settings.lastGagDate === today)
+            return false;
+        const gag = pickGag(stats.allDays(), now);
+        if (!gag)
+            return false;
+        const line = voice.tell(gag.event, gag.values, false);
+        if (!line)
+            return false;
+        settings.lastGagDate = today;
+        stats.increment('remarks');
+        behaviour.recollection.noteEvent(gag.event);
+        this.sayLine(line);
+        return true;
+    }
+
+    /** She can say a reminder now: on stage, out of a meeting, not off in a fury. */
+    private canDeliverReminder(): boolean {
+        return this.isShown() && !this.meetingState.silent && this.presence?.isStorming !== true && this.behaviour !== null;
+    }
+
+    /**
+     * A reminder's bubble stays until she is clicked, whatever the talk
+     * switch, the banners or a focus session say: she was asked for it.
+     * Hiding at the edge of the screen, she comes back for it; asleep, she
+     * wakes with a start.
+     */
+    private deliverReminder(reminder: Reminder, kind: DeliveryKind): void {
+        const {behaviour, presence, voice} = this;
+        if (!behaviour || !presence || !voice)
+            return;
+        const event = kind === 'nag' ? 'pense_bete_relance' : kind === 'late' ? 'pense_bete_en_retard' : 'pense_bete';
+        const texte = oneLine(reminder.text, REMINDER_TEXT_MAX);
+        const line = voice.pick(event, {texte, heure: clockLabel(new Date(reminder.at))}) ?? texte;
+        if (presence.isHidden)
+            presence.comeBack();
+        behaviour.nudged({kind: 'pense_bete', gesture: 'tapote', event: null, wakes: true});
+        this.stats?.increment('talks');
+        this.bubble?.stay(line);
+        behaviour.recollection.noteLine(line);
+    }
+
+    /** A delivery nobody answered: counted, and she holds it against you a little. */
+    private reminderIgnored(): void {
+        this.stats?.increment('ignored');
+        this.behaviour?.irritate();
+    }
+
+    /** The menu's entry: she answers in her bubble, understood or not. */
+    private addReminderFromMenu(input: string): void {
+        const outcome = this.createReminder(input, '');
+        if (outcome.ok) {
+            this.say(outcome.confirmation);
+            return;
+        }
+        const event = outcome.error === 'TooMany' ? 'pense_bete_plein' : 'pense_bete_incompris';
+        this.say(this.voice?.pick(event) ?? outcome.message);
+    }
+
+    /** `Remind()` on D-Bus: the caller gets the confirmation, or an error that carries an example. */
+    private remind(when: string, text: string): RemindOutcome {
+        const outcome = this.createReminder(when, text);
+        if (outcome.ok)
+            this.say(outcome.confirmation);
+        return outcome;
+    }
+
+    private createReminder(when: string, text: string): RemindOutcome {
+        const {reminders, voice} = this;
+        if (!reminders || !voice)
+            return {ok: false, error: 'BadTime', message: 'Crêpe is starting up, try again.'};
+        const now = new Date();
+        const parsed = parseReminderRequest(when, text, now);
+        if (!parsed.ok)
+            return {ok: false, error: 'BadTime', message: `${parsed.reason} Essaie par exemple ${REMINDER_EXAMPLE}.`};
+        const added = reminders.add(parsed.at, parsed.text);
+        if (!added.ok)
+            return {ok: false, error: 'TooMany', message: `Déjà ${MAX_PENDING} pense-bêtes en attente : annules-en un d'abord.`};
+        const line = voice.pick('pense_bete_ok', {quand: whenLabel(parsed.at, now), heure: clockLabel(parsed.at)});
+        return {ok: true, confirmation: line ?? plainConfirmation(parsed.at, now)};
+    }
+
+    /** Her answer to something the user just did: shown over a waiting reminder too, unless she is kept quiet. */
+    private say(line: string): void {
+        if (this.isShown() && !this.meetingState.silent)
+            this.sayLine(line, true);
+    }
+
+    private pendingReminderLabels(): {id: string; label: string}[] {
+        const now = new Date();
+        return (this.reminders?.list() ?? []).map(reminder => ({
+            id: reminder.id,
+            label: `${whenLabel(new Date(reminder.at), now).replace(/^à /, '')} · ${oneLine(reminder.text, 40)}`,
+        }));
+    }
+
+    /** Ink on the monitor she is on, below the top bar. True when some came. */
+    private throwInk(reason: 'storm' | 'sulk'): boolean {
+        const {settings, ink, sprite, hitbox} = this;
+        if (!settings?.ink || !ink || !sprite || !hitbox || !this.isShown() || this.meetingState.silent)
+            return false;
+        const found = Main.layoutManager.findIndexForActor(sprite.actor);
+        const area = Main.layoutManager.getWorkAreaForMonitor(found >= 0 ? found : Main.layoutManager.primaryIndex);
+        const count = (reason === 'storm' ? 2 : 1) + Math.floor(Math.random() * 2);
+        const body = {x: hitbox.actor.x, y: hitbox.actor.y, width: hitbox.actor.width, height: hitbox.actor.height};
+        return ink.splash(count, {x: area.x, y: area.y, width: area.width, height: area.height}, [body], sprite.actor) > 0;
     }
 
     private scheduleOutfitCheck(): void {
@@ -635,7 +862,8 @@ export default class CrepeExtension extends Extension {
         const {settings, behaviour, presence, voice, outfits} = this;
         if (!settings || !behaviour || !presence || !voice || !outfits)
             return;
-        if (!settings.visible || behaviour.isAsleep || presence.isAway || behaviour.focusMode || behaviour.isHushed)
+        if (!this.isShown() || this.meetingState.silent || behaviour.isAsleep || presence.isAway || behaviour.focusMode || behaviour.isHushed ||
+            this.reminders?.isShowing)
             return;
         const today = dayKey(this.outfitClock());
         const lineDays = parseLineDays(settings.lastOutfitLines);
@@ -649,6 +877,121 @@ export default class CrepeExtension extends Extension {
         settings.lastOutfitLines = JSON.stringify({...lineDays, [owing]: today});
         behaviour.recollection.noteEvent(event);
         this.sayLine(line);
+    }
+
+    /** Visible by choice, and not sent off the stage by a screen sharing. */
+    private isShown(): boolean {
+        return this.settings?.visible === true && !this.meetingState.hidden;
+    }
+
+    private currentMeetingMode(): MeetingMode {
+        if (!this.settings || !this.meeting)
+            return {hidden: false, silent: false};
+        return meetingMode(this.meeting.signals, {
+            hide: this.settings.hideDuringScreencast,
+            quiet: this.settings.quietDuringCalls,
+        });
+    }
+
+    /**
+     * The sharing or call signals, or the two settings, changed. A meeting
+     * starting is obeyed at once, for what is on screen could be seen;
+     * one ending waits a few seconds, so a flicker does not bring her back.
+     */
+    private syncMeeting(): void {
+        const next = this.currentMeetingMode();
+        const current = this.meetingState;
+        if (next.hidden === current.hidden && next.silent === current.silent) {
+            this.cancelMeetingEnd?.();
+            this.cancelMeetingEnd = null;
+            return;
+        }
+        if ((next.hidden && !current.hidden) || (next.silent && !current.silent)) {
+            this.cancelMeetingEnd?.();
+            this.cancelMeetingEnd = null;
+            this.applyMeeting(next);
+            return;
+        }
+        if (this.cancelMeetingEnd || !this.timers)
+            return;
+        this.cancelMeetingEnd = this.timers.schedule(MEETING_END_GRACE, () => {
+            this.cancelMeetingEnd = null;
+            this.applyMeeting(this.currentMeetingMode());
+        });
+    }
+
+    private applyMeeting(next: MeetingMode): void {
+        const previous = this.meetingState;
+        this.meetingState = next;
+        this.behaviour?.setQuiet(next.silent);
+        if (next.silent && !previous.silent) {
+            this.cancelSummary?.();
+            this.cancelSummary = null;
+            // Meetings back to back are one: the summary still owed covers both.
+            if (!this.summaryPending)
+                this.meetingStartedAt = Date.now();
+            this.bubble?.hide();
+            this.prompt?.close();
+            this.ink?.clear();
+        }
+        if (next.hidden !== previous.hidden)
+            this.applyVisibility();
+        if (previous.silent && !next.silent) {
+            // What came due meanwhile is said first, before the summary of the meeting.
+            this.reminders?.tick();
+            this.meetingOver();
+        }
+    }
+
+    /** One line about what scripts said meanwhile, or about nothing, if the meeting was long enough to wonder. */
+    private meetingOver(): void {
+        if (!this.timers)
+            return;
+        if (this.digest.summary() === null && Date.now() - this.meetingStartedAt < MEETING_WORTH_A_WORD) {
+            this.digest.clear();
+            return;
+        }
+        this.summaryPending = true;
+        this.summaryDeadline = Date.now() + SUMMARY_PATIENCE;
+        this.cancelSummary?.();
+        // She has just come back on stage: give her a moment to settle first.
+        this.cancelSummary = this.timers.schedule(MEETING_END_GRACE, () => this.tellSummary());
+    }
+
+    /** Tried again until she is free to say it, shown, awake, at home, not focusing and not hushed. */
+    private tellSummary(): void {
+        this.cancelSummary = null;
+        const {behaviour, presence, voice, timers} = this;
+        if (!this.summaryPending || !behaviour || !presence || !voice || !timers)
+            return;
+        const stale = Date.now() > this.summaryDeadline;
+        const free = this.isShown() && !this.meetingState.silent && !behaviour.isAsleep && !presence.isAway &&
+            !behaviour.focusMode && !behaviour.isHushed && !this.reminders?.isShowing;
+        if (!stale && !free) {
+            this.cancelSummary = timers.schedule(SUMMARY_RETRY_EVERY, () => this.tellSummary());
+            return;
+        }
+        const resume = this.digest.summary();
+        const event = resume === null ? 'reunion_fin_rien' : 'reunion_fin_resume';
+        const line = stale ? null : voice.speak(event, resume === null ? {} : {resume});
+        if (!line && !stale) {
+            this.cancelSummary = timers.schedule(SUMMARY_RETRY_EVERY, () => this.tellSummary());
+            return;
+        }
+        this.summaryPending = false;
+        this.digest.clear();
+        if (!line)
+            return;
+        behaviour.recollection.noteEvent(event);
+        this.sayLine(line);
+    }
+
+    private focusedWindowIsTerminal(): boolean {
+        const window = global.display.focus_window;
+        if (!window)
+            return false;
+        const app = Shell.WindowTracker.get_default().get_window_app(window);
+        return isTerminal([window.get_wm_class(), window.get_gtk_application_id(), app?.get_id()]);
     }
 
     /** Banners off means notifications are muted, whoever turned them off; `announce` says it with a gesture or a line. */
@@ -700,15 +1043,36 @@ export default class CrepeExtension extends Extension {
             if (count !== null)
                 behaviour.recollection.noteOpenTickets(count);
         }
+        if (kind === 'musique' || kind === 'musique_fin') {
+            this.remoteMusic(kind, text);
+            return;
+        }
+        // She would not hear it, whoever is in front of her: only a terminal out of sight needs the news.
+        if (kind === 'commande_longue' && this.terminalFocused())
+            return;
+        this.stats?.increment('nudges');
+        // A broken pipeline or command is an error of the day, whether or not she gets to facepalm at it.
+        if (kind === 'pipeline_echec' || kind === 'commande_echec')
+            this.stats?.increment('errors');
+        if (kind === 'pipeline_echec')
+            this.stats?.increment('pipelines');
+        if (kind === 'commande_echec')
+            this.stats?.increment('commands');
+        // Counted for the line she says once the meeting is over.
+        if (this.meetingState.silent) {
+            this.digest.add(kind);
+            return;
+        }
+        if (kind === 'commande_echec' && Date.now() - this.lastCommandFailureAt < COMMAND_FAILURE_EVERY)
+            return;
         const texte = oneLine(text, TEXT_IN_LINE_MAX);
         // Without it, the lines that need it are skipped.
         const values = texte.length > 0 ? {texte} : {};
-        this.stats?.increment('nudges');
-        // A broken pipeline is an error of the day, whether or not she gets to facepalm at it.
-        if (kind === 'pipeline_echec')
-            this.stats?.increment('errors');
         const reaction = nudgeReaction(kind, values, this.pointerAtFocusedWindow(), this.glanceAtPointer());
-        if (!behaviour.nudged(reaction) || kind !== 'info' || behaviour.isHushed)
+        const reacted = behaviour.nudged(reaction);
+        if (reacted && kind === 'commande_echec')
+            this.lastCommandFailureAt = Date.now();
+        if (!reacted || kind !== 'info' || behaviour.isHushed)
             return;
         const said = this.voice?.relay(oneLine(text, INFO_MAX));
         if (said)
@@ -808,6 +1172,26 @@ export default class CrepeExtension extends Extension {
         this.menu?.withdrawMuteOffer();
     }
 
+    /**
+     * The daemon saw a track start, or a long session end, on one of her
+     * Spotify devices. Not told twice with the desktop's own player, see
+     * `TrackGate`; kept to herself in a meeting.
+     */
+    private remoteMusic(kind: 'musique' | 'musique_fin', text: string): void {
+        const {behaviour, trackGate} = this;
+        if (!behaviour || !trackGate || !this.settings?.reactToMusic || this.meetingState.silent)
+            return;
+        const now = Date.now();
+        if (kind === 'musique_fin') {
+            if (trackGate.remoteSilence(now))
+                behaviour.remark('silence');
+            return;
+        }
+        const title = trackGate.remoteTrack(oneLine(text, INFO_MAX), now);
+        if (title !== null)
+            behaviour.remark('musique', {titre: title});
+    }
+
     private syncMusic(): void {
         if (!this.settings?.reactToMusic) {
             this.music?.destroy();
@@ -818,10 +1202,13 @@ export default class CrepeExtension extends Extension {
             return;
         const behaviour = this.behaviour;
         this.music = new MusicWatcher(event => {
-            if (event.kind === 'silence')
-                behaviour.remark('silence');
-            else
+            const now = Date.now();
+            if (event.kind === 'silence') {
+                if (this.trackGate?.localSilence(now) !== false)
+                    behaviour.remark('silence');
+            } else if (this.trackGate?.localTrack(event.title, now) !== false) {
                 behaviour.remark('musique', event.title === null ? {} : {titre: event.title});
+            }
         });
     }
 
@@ -846,7 +1233,7 @@ export default class CrepeExtension extends Extension {
      */
     private openPrompt(): void {
         // Stormed off, she is not coming back to chat.
-        if (!this.settings?.visible || !this.settings.brain || !this.prompt || !this.presence || this.presence.isStorming)
+        if (!this.isShown() || !this.settings?.brain || !this.prompt || !this.presence || this.presence.isStorming)
             return;
         if (this.presence.isHidden)
             this.presence.comeBack();
@@ -876,7 +1263,7 @@ export default class CrepeExtension extends Extension {
                 return;
             }
             prompt.clear();
-            this.sayLine(reply.trim());
+            this.sayLine(reply.trim(), true);
             this.behaviour?.acknowledge();
         }, (error: unknown) => {
             if (this.brain !== brain || this.prompt !== prompt)
@@ -892,7 +1279,7 @@ export default class CrepeExtension extends Extension {
         console.warn(`Crêpe: the daemon could not answer (${kind}): ${error instanceof Error ? error.message : String(error)}`);
         const line = this.voice?.speak(BRAIN_TROUBLE_EVENTS[kind]);
         if (line)
-            this.sayLine(line);
+            this.sayLine(line, true);
         else
             this.bubble?.hide();
     }
@@ -913,8 +1300,14 @@ export default class CrepeExtension extends Extension {
             console.warn(`Crêpe: the daemon could not forget: ${error instanceof Error ? error.message : String(error)}`));
     }
 
-    /** Every line she says goes through here, so the daemon knows what she last said. */
-    private sayLine(line: string): void {
+    /**
+     * Every line she says goes through here, so the daemon knows what she
+     * last said. A reminder waiting for a click holds the bubble: other
+     * lines are dropped, unless `force` (an answer to what the user just did).
+     */
+    private sayLine(line: string, force = false): void {
+        if (!force && this.reminders?.isShowing)
+            return;
         this.stats?.increment('talks');
         this.bubble?.say(line);
         this.behaviour?.recollection.noteLine(line);
@@ -968,7 +1361,7 @@ function sideOf(x: number, body: Clutter.Actor): Side | null {
 }
 
 /** What each kind of nudge makes her do; `info` has no line of its own, its text is the line. */
-function nudgeReaction(kind: NudgeKind, values: {texte?: string}, pointer: string | null, glance: string): NudgeReaction {
+function nudgeReaction(kind: Exclude<NudgeKind, 'musique' | 'musique_fin'>, values: {texte?: string}, pointer: string | null, glance: string): NudgeReaction {
     switch (kind) {
     case 'tache_terminee':
         return {kind, gesture: pointer, event: 'tache_terminee', values};
@@ -987,6 +1380,10 @@ function nudgeReaction(kind: NudgeKind, values: {texte?: string}, pointer: strin
         return {kind, gesture: /batterie/i.test(values.texte ?? '') ? 'sursaut' : glance, event: 'machine', values};
     case 'agenda':
         return {kind, gesture: 'tapote', event: 'agenda', values};
+    case 'commande_echec':
+        return {kind, gesture: 'facepalm', event: 'commande_echec', values};
+    case 'commande_longue':
+        return {kind, gesture: 'soupir', event: 'commande_longue', values};
     case 'info':
         return {kind, gesture: null, event: null};
     }

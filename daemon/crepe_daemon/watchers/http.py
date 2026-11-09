@@ -5,6 +5,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from typing import Protocol
 
 from .. import VERSION
@@ -15,6 +16,14 @@ REQUEST_TIMEOUT_S = 20
 MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 
 
+@dataclass(frozen=True)
+class HttpResponse:
+    status: int
+    # Header names in lower case.
+    headers: dict[str, str]
+    body: bytes
+
+
 class Transport(Protocol):
     def get_json(self, url: str, headers: dict[str, str]) -> object:
         """GET `url` and return the decoded JSON body. Raises WatcherError."""
@@ -22,6 +31,10 @@ class Transport(Protocol):
 
     def get_text(self, url: str, headers: dict[str, str]) -> str:
         """GET `url` and return the body as text. Errors name the host only. Raises WatcherError."""
+        ...
+
+    def request(self, method: str, url: str, headers: dict[str, str], data: bytes | None = None) -> HttpResponse:
+        """Send a request and return the answer whatever its status. Raises WatcherError only when no answer came."""
         ...
 
 
@@ -53,6 +66,26 @@ class UrllibTransport:
         except UnicodeDecodeError:
             raise WatcherError(f"response from {where} is not UTF-8 text") from None
 
+    def request(self, method: str, url: str, headers: dict[str, str], data: bytes | None = None) -> HttpResponse:
+        # For APIs whose status codes mean something (401, 429, 204): the caller decides what each one is.
+        where = _describe(url)
+        try:
+            request = urllib.request.Request(
+                url, data=data, method=method, headers={**headers, "User-Agent": f"crepe-daemon/{VERSION}"}
+            )
+            try:
+                with self._opener.open(request, timeout=self.timeout_s) as response:
+                    return HttpResponse(response.status, _lower_headers(response.headers), response.read(MAX_RESPONSE_BYTES))
+            except urllib.error.HTTPError as error:
+                with error:
+                    return HttpResponse(error.code, _lower_headers(error.headers), error.read(MAX_RESPONSE_BYTES))
+        except urllib.error.URLError as error:
+            raise WatcherError(f"cannot reach {where}: {error.reason}") from None
+        except (TimeoutError, OSError) as error:
+            raise WatcherError(f"cannot reach {where}: {error}") from None
+        except (ValueError, http.client.HTTPException) as error:
+            raise WatcherError(f"bad URL or response from {where} ({type(error).__name__})") from None
+
     def _fetch(self, url: str, headers: dict[str, str], where: str) -> bytes:
         try:
             request = urllib.request.Request(url, headers={**headers, "User-Agent": f"crepe-daemon/{VERSION}"})
@@ -83,3 +116,7 @@ def _describe(url: str) -> str:
     # Host and path only: enough to tell which call failed.
     parts = urllib.parse.urlsplit(url)
     return f"{parts.netloc}{parts.path}"
+
+
+def _lower_headers(headers) -> dict[str, str]:
+    return {name.lower(): value for name, value in headers.items()}

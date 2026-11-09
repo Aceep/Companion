@@ -6,6 +6,9 @@ from unittest import mock
 
 from crepe_daemon import main as cli
 from crepe_daemon import secrets as keyring
+from crepe_daemon.agent_sdk import AgentSdkBackend
+from crepe_daemon.brain import AnthropicBackend
+from crepe_daemon.config import Config
 
 
 class FakeSecret:
@@ -34,7 +37,7 @@ class TokenTest(unittest.TestCase):
         patcher = mock.patch.object(keyring, "Secret", self.secret)
         patcher.start()
         self.addCleanup(patcher.stop)
-        environment = mock.patch.dict(os.environ, {"CREPE_GITLAB_TOKEN": "", "CREPE_REDMINE_KEY": ""})
+        environment = mock.patch.dict(os.environ, {"CREPE_GITLAB_TOKEN": "", "CREPE_REDMINE_KEY": "", "CREPE_SPOTIFY_REFRESH_TOKEN": "", "CREPE_CLAUDE_OAUTH_TOKEN": ""})
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -56,6 +59,43 @@ class TokenTest(unittest.TestCase):
         self.run_cli("--set-token", "redmine", typed="rm-key")
         self.assertIn("redmine-key", self.secret.items)
         self.assertIsNone(keyring.lookup_token("gitlab"))
+
+    def test_spotify_refresh_token_has_its_own_purpose_and_can_be_forgotten(self):
+        keyring.store_token("spotify", "refresh-abc")
+        self.assertEqual(self.secret.items["spotify-refresh-token"][1], "refresh-abc")
+        self.assertEqual(self.run_cli("--forget-token", "spotify"), 0)
+        self.assertIsNone(keyring.lookup_token("spotify"))
+
+    def test_claude_token_has_its_own_purpose(self):
+        self.run_cli("--set-token", "claude", typed=" oat-abc \n")
+        self.assertEqual(self.secret.items["claude-oauth-token"], ("Crêpe Claude subscription token", "oat-abc"))
+        self.assertEqual(keyring.lookup_token("claude"), "oat-abc")
+        self.assertNotIn("api-key", self.secret.items)
+
+    def test_claude_token_can_be_forgotten(self):
+        keyring.store_token("claude", "oat-abc")
+        self.assertEqual(self.run_cli("--forget-token", "claude"), 0)
+        self.assertIsNone(keyring.lookup_token("claude"))
+
+    def test_claude_token_env_override_wins_over_the_keyring(self):
+        keyring.store_token("claude", "from-keyring")
+        with mock.patch.dict(os.environ, {"CREPE_CLAUDE_OAUTH_TOKEN": "from-env"}):
+            self.assertEqual(keyring.lookup_token("claude"), "from-env")
+
+    def test_backend_picks_its_own_credential(self):
+        keyring.store_token("claude", "oat-abc")
+        api = cli.key_lookup_for(Config(backend="api"), fake=False)
+        subscription = cli.key_lookup_for(Config(backend="abonnement"), fake=False)
+        with mock.patch.dict(os.environ, {"CREPE_API_KEY": ""}):
+            self.assertIsNone(api())
+        self.assertEqual(subscription(), "oat-abc")
+
+    def test_fake_mode_never_touches_the_keyring(self):
+        self.assertIs(cli.key_lookup_for(Config(backend="abonnement"), fake=True), keyring.lookup_key_from_env)
+
+    def test_backend_class_follows_the_config(self):
+        self.assertIsInstance(cli.build_backend(Config(backend="api")), AnthropicBackend)
+        self.assertIsInstance(cli.build_backend(Config(backend="abonnement")), AgentSdkBackend)
 
     def test_empty_input_stores_nothing(self):
         with mock.patch("sys.stderr", io.StringIO()):

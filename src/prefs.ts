@@ -24,6 +24,10 @@ const STAT_LABELS: Record<StatCounter, string> = {
     talks: 'Répliques',
     crawls: 'Promenades',
     remarks: 'Remarques spontanées',
+    pipelines: 'Pipelines en échec',
+    commands: 'Commandes en échec',
+    ignored: 'Pense-bêtes ignorés',
+    focus: 'Sessions de concentration',
 };
 
 /** The groups of the statistics page: a title and how many days back it adds up, today included. */
@@ -92,6 +96,7 @@ export default class CrepePreferences extends ExtensionPreferences {
         group.add(switchRow(settings, 'talk', 'Parle', 'Lâche une courte remarque de temps en temps.'));
         group.add(switchRow(settings, 'react-to-notifications', 'Réagit aux notifications', "Sursaute à l'arrivée ; facepalm ou pouce levé selon les mots-clés."));
         group.add(switchRow(settings, 'react-to-windows', 'Réagit aux titres de fenêtre', 'Surveille les mots-clés dans le titre de la fenêtre active.'));
+        group.add(switchRow(settings, 'ink', "Crache de l'encre quand elle est furieuse", "Quelques taches sombres sur l'écran, qui s'effacent d'elles-mêmes. Aussi quand on la titille en pleine bouderie."));
         group.add(switchRow(settings, 'perch', 'Se perche sur la fenêtre active', 'Sur sa barre de titre, au lieu de sa place à elle.'));
         group.add(switchRow(settings, 'eyes-follow', 'Suit la souris des yeux', "Au repos, elle regarde vers le pointeur ; tout près d'elle ou immobile, elle regarde droit devant."));
         group.add(switchRow(settings, 'dodge', "S'écarte de la fenêtre active", 'Elle se pousse sur sa ligne quand elle la cache, et revient ensuite. Seulement au-dessus des fenêtres.'));
@@ -109,6 +114,8 @@ export default class CrepePreferences extends ExtensionPreferences {
         group.add(spinRow(settings, 'homesick-percent', 'Retour à sa place après un déplacement (%)', 'Quand elle est calme ; le double si elle est agacée, toujours si elle boude. 0 = jamais.', 0, 100));
         group.add(spinRow(settings, 'focus-minutes', 'Durée du mode concentration (minutes)', 'Lancé depuis son menu. Ni remarques, ni promenades, ni réactions.', 5, 180));
         group.add(switchRow(settings, 'focus-dnd', 'Ne pas déranger pendant la concentration', 'Coupe les bannières de notification, puis les remet comme avant.'));
+        group.add(switchRow(settings, 'hide-during-screencast', "Se cache pendant le partage d'écran", "Aussi pendant un enregistrement d'écran. Elle revient quand il se termine."));
+        group.add(switchRow(settings, 'quiet-during-calls', 'Se tait pendant les appels', "Tant qu'une application utilise le micro ou la caméra. Elle résume en une phrase ce que les scripts ont dit pendant ce temps."));
         group.add(switchRow(settings, 'recap', 'Bilan du soir', 'Une fois par jour, elle résume la journée.'));
         group.add(spinRow(settings, 'recap-hour', 'Heure du bilan', 'Pendant cette heure-là, si elle est réveillée et visible.', 0, 23));
         return group;

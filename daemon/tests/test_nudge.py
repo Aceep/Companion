@@ -47,6 +47,9 @@ class NudgerTest(unittest.TestCase):
     def test_local_watcher_kinds_are_known(self):
         self.assertLessEqual({"travail_non_commite", "machine", "agenda"}, KINDS)
 
+    def test_terminal_hook_kinds_are_known(self):
+        self.assertLessEqual({"commande_echec", "commande_longue"}, KINDS)
+
     def test_unknown_kind_is_not_sent(self):
         connection = FakeConnection()
         with self.assertLogs("crepe_daemon.nudge", level="WARNING"):

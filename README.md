@@ -192,7 +192,8 @@ gnome-extensions prefs crepe@aceep.github.io
   script sent) in any event she says on her own (`retour`, `matin`,
   `clic`, `commentaire`...), where such a line comes up one time in
   three once the count is known and never before, and `{notifs}`,
-  `{erreurs}`, `{succes}`, `{clics}`, `{nudges}` in `bilan`; any other
+  `{erreurs}`, `{succes}`, `{clics}`, `{nudges}` in `bilan`, `{resume}` in
+  `reunion_fin_resume`; any other
   name between braces is refused at load. A switch in the menu and in
   the preferences silences her.
 - "Mode concentration (45 min)" in her menu (the length is a setting)
@@ -218,6 +219,16 @@ gnome-extensions prefs crepe@aceep.github.io
   idle remarks. The last 30 days live in the `stats` setting as JSON,
   written at most once a minute and when the extension is disabled; the
   "Statistiques" page of the preferences reads it.
+- Pestered past her patience she spits ink: 1 to 3 dark splats on the monitor she is on, below
+  the top bar, over the windows, taking no clicks, fading away in about 20 seconds (3 on screen
+  at most). She does it when she storms off and once per sulk when poked meanwhile (`encre`),
+  never during a meeting, and they vanish when she is hidden. "Crache de l'encre" turns it off.
+  The splats are drawn by `scripts/make-ink.py` into `assets/encre/`.
+- She remembers the week. The stats also count failed pipelines and commands, ignored
+  reminders and focus sessions. At most once a day an idle remark is replaced by a notable fact
+  of the last 7 days, not today ("Au fait, mardi : 4 pipelines cassés. Je dis ça…":
+  `rappel_pipeline`, `rappel_commandes`, `rappel_bouderie`, `rappel_focus`, with `{jour}` and `{nombre}`). On Friday from
+  17:00, with the recap on, she sums the week up once (`bilan_semaine`, `{resume}`).
 - She dresses up for the occasion, see "Tenues" below.
 - A right-click opens a small menu: preferences, the focus session,
   switches for crawling and talking, a way to send her off-screen ("Se
@@ -361,6 +372,10 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `travail_non_commite` | Glances towards the pointer: uncommitted work lying around (`crepe · 3 fichiers · 2 h`) |
 | `machine` | Something about the computer (`disque 92 %`): a glance, or a jump when `text` mentions `batterie` |
 | `agenda` | Taps a tentacle for a few seconds: a meeting is coming (`Point équipe dans 10 min`) |
+| `commande_echec` | Facepalms, naming `text` (the command and its exit code, `make · 2`). At most one shown a minute. Sent by the terminal hook, see below |
+| `commande_longue` | A sigh, naming `text` (`npm · 3 min 12 s`). Dropped while a terminal window has the focus. Sent by the terminal hook |
+| `musique` | A remark on a new track, `text` being `Titre — Artiste`. Sent by the daemon's Spotify watcher for her other devices; ignored while a player on this desktop plays or when it is the track that player just reported. Only with "Commente la musique" |
+| `musique_fin` | Notices the quiet after a long listening session on another device. Same rules |
 | `info` | Says `text` as is, cut to 160 characters, no gesture |
 
 `text` goes into her line on a single line, cut to 60 characters
@@ -373,6 +388,71 @@ a focus session (`attention` aside), and
 each kind gets through once every five seconds at most, extra ones being
 dropped. Every nudge that gets through is one of the recent events the
 daemon is told about, under its kind.
+
+### Pense-bêtes
+
+"Pense-bête…" in her menu is an entry to type into (Enter validates): `15h30 appeler Paul`,
+`dans 20 min sortir le pain`, `dans 1h30 pause`, `demain 9h rendez-vous`, with an optional
+`:` or ` - ` before the text. A time already past today means tomorrow. She confirms in her
+bubble, or says she did not understand and gives an example. "Pense-bêtes (n)" lists the
+pending ones (20 at most); clicking one cancels it. From a script:
+
+```sh
+gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe \
+    --method io.github.aceep.Crepe.Remind "dans 20 min" "sortir le pain"
+```
+
+It answers with her confirmation, or fails with `io.github.aceep.Crepe.Error.BadTime` (the
+message has examples) or `...Error.TooMany`. They live in the `reminders` setting, so a re-login
+keeps them; overdue ones are delivered when she starts ("Tu avais un pense-bête à 14h : ..."). When one
+rings, her bubble stays until you click her (a click that is no pestering), she wakes up for
+it, and ignored, she repeats it every 5 minutes, 3 times at most, getting a little more
+annoyed each time. During a meeting it waits and is said first when it ends, before the summary.
+The lines are `pense_bete`, `pense_bete_relance`, `pense_bete_ok`, `pense_bete_incompris`,
+`pense_bete_en_retard`, `pense_bete_plein` (`{texte}`, `{heure}`, and `{quand}` in `pense_bete_ok`).
+
+### Meetings
+
+While the screen is shared or recorded she leaves the stage altogether
+(sprite, bubble, outfits) and comes back a few seconds after it ends;
+"Se cache pendant le partage d'écran" turns this off. While an application
+uses the microphone or a camera she stays, but says nothing and ignores
+nudges and notifications; "Se tait pendant les appels" turns this off.
+Nudges that come in meanwhile are counted (20 at most), and once the
+meeting is over she says one line, such as "Pendant ta réu : 2 pipelines
+en échec, 1 ticket." (`reunion_fin_resume`), or `reunion_fin_rien` after
+a meeting of two minutes or more without news. The line waits for her to be
+awake, at home, not focusing and not hushed, and is dropped after ten
+minutes. Focus sessions and "ne pas déranger" work as before.
+
+The signals are the ones the shell's own indicators use: the remote access
+controller's `new-handle` (screen sharing, remote desktop, portal
+screencasts) and `Main.screenshotUI`'s `screencast-in-progress` (the
+built-in recorder); the volume control's source outputs for the
+microphone; `Shell.CameraMonitor` for cameras, which only sees PipeWire
+cameras, not an application opening `/dev/video*` directly. No daemon is
+needed.
+
+### Terminal hook
+
+`scripts/crepe-shell-hook.bash` tells her when a command fails or takes
+long. Source it from `~/.bashrc`, after any prompt setup:
+
+```sh
+source /path/to/crepe/scripts/crepe-shell-hook.bash
+```
+
+A failed command sends `commande_echec` (`make · 2`); a successful one that
+took `CREPE_LONG_SECONDS` seconds (60 by default) or more sends
+`commande_longue` (`npm · 3 min 12 s`). A long command that also failed is
+reported as a failure only. Ctrl+C (130) and Ctrl+Z (148), empty lines and
+the first prompt send nothing. The name is the first word of the line,
+past `VAR=value` prefixes, read from the history, so a line the history
+ignores (`HISTCONTROL=ignorespace`) is named after the previous one. The hook
+needs bash 5 and an interactive shell, prints nothing, keeps `$?` and the
+`PROMPT_COMMAND` you had (string or array), and calls `gdbus` from a
+detached process, so a missing `gdbus` or extension costs nothing. It
+times commands with `PS0` and sets no `DEBUG` trap.
 
 `Ping() -> (s version)` returns the extension's version, to check she is
 there:
@@ -403,6 +483,13 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/mood.ts` | Annoyance score from clicks and moves, decay, sulking and storming off. No GNOME dependency |
 | `src/nudge.ts` | The `io.github.aceep.Crepe` D-Bus object scripts call (`Nudge`, `Ping`), per-kind rate limit, text clean-up |
 | `src/voice.ts` | Picks a line from `assets/repliques.json`: cooldown, odds, time of day, placeholders, the evening recap. No Clutter dependency |
+| `src/meeting.ts` | Screen sharing, microphone and camera signals from the shell |
+| `src/digest.ts` | What a meeting hides or silences, and the count of nudges she missed. No GNOME dependency |
+| `src/terminals.ts` | The terminal emulators whose focus silences `commande_longue`. No GNOME dependency |
+| `src/reminders.ts` | French time parser for reminders, the pending list and its delivery and nagging. No GNOME dependency |
+| `src/memory.ts` | The week's notable fact and the Friday bilan text. No GNOME dependency |
+| `src/tracks.ts` | One music remark per track whichever source tells first. No GNOME dependency |
+| `src/ink.ts`, `src/inkspots.ts` | The ink splats on screen, and where they may fall (pure) |
 | `src/stats.ts` | Daily counters, their JSON in the `stats` setting, sums over days. No GNOME dependency, shared with the preferences |
 | `src/bubble.ts` | Speech bubble above her head, follows her and fades out on its own |
 | `src/prompt.ts` | The box to type something to her, over her head, with a modal grab while open |
@@ -417,7 +504,7 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/prefs.ts` | Preferences window (libadwaita) |
 | `src/extension.ts` | Wires everything into the shell, cleans up on disable |
 | `schemas/` | GSettings schema, compiled at deploy time |
-| `scripts/` | Deploy, nested-shell, blink-frame, bat-pose, eye-pose and placeholder-outfit helpers |
+| `scripts/` | Terminal hook for bash, deploy, nested-shell, blink-frame, bat-pose, eye-pose and placeholder-outfit helpers |
 
 ## Animation metadata
 

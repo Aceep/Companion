@@ -1,4 +1,4 @@
-"""The API key and the watcher tokens, kept in the desktop keyring through libsecret."""
+"""The API key, the subscription token and the watcher tokens, kept in the desktop keyring through libsecret."""
 
 import logging
 import os
@@ -20,10 +20,14 @@ SCHEMA = Secret.Schema.new(
 )
 
 
-# Watcher tokens: name on the command line -> (purpose attribute, env override, label).
+# Other tokens: name on the command line -> (purpose attribute, env override, label).
 TOKENS = {
     "gitlab": ("gitlab-token", "CREPE_GITLAB_TOKEN", "Crêpe GitLab token"),
     "redmine": ("redmine-key", "CREPE_REDMINE_KEY", "Crêpe Redmine API key"),
+    # The OAuth refresh token, written by --login spotify and rotated by the watcher.
+    "spotify": ("spotify-refresh-token", "CREPE_SPOTIFY_REFRESH_TOKEN", "Crêpe Spotify refresh token"),
+    # The subscription token from `claude setup-token`, for backend = "abonnement".
+    "claude": ("claude-oauth-token", "CREPE_CLAUDE_OAUTH_TOKEN", "Crêpe Claude subscription token"),
 }
 
 
@@ -59,7 +63,7 @@ def clear_key() -> bool:
 
 
 def lookup_token(name: str) -> str | None:
-    """A watcher token ("gitlab" or "redmine"): its env override if set, else the keyring."""
+    """A named token ("gitlab", "redmine", "spotify" or "claude"): its env override if set, else the keyring."""
     purpose, env_var, _label = TOKENS[name]
     from_env = os.environ.get(env_var, "").strip()
     return from_env or _lookup({"purpose": purpose})
@@ -71,7 +75,7 @@ def store_token(name: str, token: str) -> None:
 
 
 def clear_token(name: str) -> bool:
-    """Remove a stored watcher token. True if there was one."""
+    """Remove a stored token. True if there was one."""
     purpose, _env_var, _label = TOKENS[name]
     return _clear({"purpose": purpose})
 

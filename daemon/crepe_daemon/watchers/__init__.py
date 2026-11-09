@@ -9,6 +9,7 @@ from .http import Transport, UrllibTransport
 from .ics import IcsWatcher
 from .machine import MachineWatcher
 from .redmine import RedmineWatcher
+from .spotify import SpotifyWatcher
 
 __all__ = [
     "GitWatcher",
@@ -16,6 +17,7 @@ __all__ = [
     "IcsWatcher",
     "MachineWatcher",
     "RedmineWatcher",
+    "SpotifyWatcher",
     "StateStore",
     "Watcher",
     "WatcherError",
@@ -68,6 +70,18 @@ def build_watchers(
     if config.ics is not None:
         watchers.append(
             IcsWatcher(config.ics, transport, nudge, state, first_delay_s=_first_delay(config.ics.interval_minutes, dev))
+        )
+    if config.spotify is not None:
+        watchers.append(
+            SpotifyWatcher(
+                config.spotify,
+                transport,
+                lambda: keyring.lookup_token("spotify"),
+                lambda token: keyring.store_token("spotify", token),
+                nudge,
+                state,
+                first_delay_s=_first_delay(config.spotify.interval_seconds / 60, dev),
+            )
         )
     return WatcherPool(watchers)
 

@@ -3,7 +3,12 @@
 #   systemctl --user restart crepe-daemon
 # Every key is optional; a missing file means all defaults.
 
-# Model used for replies.
+# Where replies come from: "api" (the Messages API, with the key from
+# --set-key) or "abonnement" (the Agent SDK on a subscription token from
+# `claude setup-token`, stored with --set-token claude). See daemon/README.md.
+backend = "api"
+
+# Model used for replies, for both backends.
 model = "claude-haiku-5-5"
 
 # Maximum API requests per day (Ask and Remark together). Past it, calls
@@ -51,6 +56,8 @@ max_reply_chars = 160
 # watcher first saw it dirty) or its unpushed commits are older than this,
 # then at most once per this many minutes (minimum 1).
 # nag_after_minutes = 120
+# false: no nag about commits not pushed yet, only uncommitted work.
+# unpushed = true
 
 # Disk, battery and load of this machine -> nudge "machine".
 # [watchers.machine]
@@ -80,3 +87,18 @@ max_reply_chars = 160
 # Nudge for events starting within this many minutes (or within one
 # interval, if longer, so none slips between two looks).
 # warn_minutes = 10
+
+# What you are listening to on Spotify -> nudges "musique" (a new track) and
+# "musique_fin" (playback stopped after 20+ minutes of listening).
+# Needs your own Spotify app first (see daemon/README.md, "Spotify"), then:
+#   python -m crepe_daemon --login spotify
+# [watchers.spotify]
+# Required. The "Client ID" of your Spotify app (public, not a secret).
+# client_id = "0123456789abcdef0123456789abcdef"
+# Port of the redirect URI, which is exactly http://127.0.0.1:<port>/callback
+# and must be pasted as-is in the app's settings. 1024-65535.
+# redirect_port = 8898
+# Seconds between looks (minimum 15).
+# interval_seconds = 30
+# Seconds between looks once nothing has played for 10 minutes.
+# idle_interval_seconds = 120

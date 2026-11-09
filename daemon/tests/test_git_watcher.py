@@ -58,9 +58,9 @@ class GitWatcherTestCase(StateDirTestCase):
         path.write_text("x")
         os.utime(path, (NOW - age_s, NOW - age_s))
 
-    def make(self, paths: list[Path], nag_after_minutes: float = 120) -> GitWatcher:
+    def make(self, paths: list[Path], nag_after_minutes: float = 120, unpushed: bool = True) -> GitWatcher:
         return GitWatcher(
-            GitConfig(paths=tuple(str(path) for path in paths), nag_after_minutes=nag_after_minutes),
+            GitConfig(paths=tuple(str(path) for path in paths), nag_after_minutes=nag_after_minutes, unpushed=unpushed),
             self.record_nudge,
             StateStore(),
             run=self.git,
@@ -187,6 +187,14 @@ class UnpushedTest(GitWatcherTestCase):
         self.assertEqual(watcher.tick(), [])
         self.clock["now"] += 2 * HOUR
         self.assertEqual(watcher.tick(), [("travail_non_commite", "crepe · 3 commits pas poussés")])
+
+    def test_unpushed_commits_are_quiet_when_turned_off(self):
+        repo = self.repo("crepe")
+        self.git.unpushed[str(repo)] = "3\n"
+        watcher = self.make([repo], unpushed=False)
+        watcher.tick()
+        self.clock["now"] += 3 * HOUR
+        self.assertEqual(watcher.tick(), [])
 
     def test_branch_without_upstream_is_quiet(self):
         repo = self.repo("crepe")

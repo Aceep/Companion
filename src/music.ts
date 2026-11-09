@@ -1,6 +1,8 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import {truncateTitle} from './tracks.js';
+
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 
@@ -12,8 +14,6 @@ const PLAYER_INTERFACE = 'org.mpris.MediaPlayer2.Player';
 
 /** Playing this long before it stops, and the quiet is worth a remark. */
 const LONG_SESSION = 20 * MINUTE;
-/** Titles are quoted inside a short line; past this they are cut. */
-const TITLE_MAX_LENGTH = 30;
 
 /** A new track started (`title` is null when the player does not say), or a long session just ended. */
 export type MusicEvent = {kind: 'track'; title: string | null} | {kind: 'silence'};
@@ -55,7 +55,7 @@ export class PlaybackTracker {
         if (!this.playing || state.trackKey === null || state.trackKey === this.track)
             return null;
         this.track = state.trackKey;
-        return {kind: 'track', title: state.title === null ? null : truncate(state.title)};
+        return {kind: 'track', title: state.title === null ? null : truncateTitle(state.title)};
     }
 }
 
@@ -89,6 +89,11 @@ export class MusicWatcher {
                     this.playerVanished(name);
             });
         this.listExistingPlayers();
+    }
+
+    /** The followed player is playing right now. */
+    get isPlaying(): boolean {
+        return this.proxy?.get_cached_property('PlaybackStatus')?.deepUnpack<string>() === 'Playing';
     }
 
     destroy(): void {
@@ -181,10 +186,6 @@ function readState(proxy: Gio.DBusProxy): PlayerState {
     const title = typeof rawTitle === 'string' && rawTitle.length > 0 ? rawTitle : null;
     const artists = Array.isArray(rawArtists) ? rawArtists.join(', ') : '';
     return {status, title, trackKey: title === null ? null : `${artists}\n${title}`};
-}
-
-function truncate(title: string): string {
-    return title.length > TITLE_MAX_LENGTH ? `${title.slice(0, TITLE_MAX_LENGTH - 1)}…` : title;
 }
 
 /** Cancelling is how destroy() stops pending calls; anything else is a real failure. */

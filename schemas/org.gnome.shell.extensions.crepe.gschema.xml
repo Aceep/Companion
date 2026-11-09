@@ -143,6 +143,16 @@
       <summary>Turn notification banners off during a focus session</summary>
       <description>Sets org.gnome.desktop.notifications show-banners to false for the session, then back to what it was.</description>
     </key>
+    <key name="hide-during-screencast" type="b">
+      <default>true</default>
+      <summary>Hide while the screen is shared or recorded</summary>
+      <description>She leaves the stage, bubble and outfits included, for as long as a screen sharing or a screen recording goes on.</description>
+    </key>
+    <key name="quiet-during-calls" type="b">
+      <default>true</default>
+      <summary>Stay quiet while a microphone or a camera is in use</summary>
+      <description>No bubble and no reaction to scripts while an application records from the microphone or uses a camera; what scripts said is summed up in one line afterwards.</description>
+    </key>
     <key name="recap" type="b">
       <default>true</default>
       <summary>Evening recap</summary>
@@ -191,6 +201,26 @@
       <default>'{}'</default>
       <summary>Day each outfit last got its line</summary>
       <description>Internal: JSON object of outfit ids to YYYY-MM-DD, so she remarks on an outfit once a day at most, across logins.</description>
+    </key>
+    <key name="reminders" type="s">
+      <default>'[]'</default>
+      <summary>Pending reminders</summary>
+      <description>Internal: JSON array of {id, at (epoch milliseconds), text}, at most 20, so a re-login does not lose them. Overdue ones are delivered when she starts.</description>
+    </key>
+    <key name="ink" type="b">
+      <default>true</default>
+      <summary>Spit ink when she is furious</summary>
+      <description>A few dark splats on the monitor she is on when she storms off, or once per sulk when she is poked meanwhile. They take no clicks and fade away in about twenty seconds.</description>
+    </key>
+    <key name="last-week-bilan" type="s">
+      <default>''</default>
+      <summary>Day of the last weekly bilan, as YYYY-MM-DD</summary>
+      <description>Internal: on Friday from 17:00, if the recap is on, she sums the week up once; this keeps a re-login from repeating it.</description>
+    </key>
+    <key name="last-gag-date" type="s">
+      <default>''</default>
+      <summary>Day she last brought up a fact of the past week, as YYYY-MM-DD</summary>
+      <description>Internal: at most once a day, an idle remark is replaced by a notable fact of the last seven days.</description>
     </key>
   </schema>
 </schemalist>

@@ -24,6 +24,11 @@ export interface CrepeMenuActions {
     /** Starts a focus session of the set length, or ends the one going on. */
     toggleFocus: () => void;
     isFocusing: () => boolean;
+    /** The text typed in the reminder entry; she answers in her bubble. */
+    addReminder: (input: string) => void;
+    /** Soonest first, `label` being "15h30 · appeler Paul". */
+    pendingReminders: () => readonly {id: string; label: string}[];
+    cancelReminder: (id: string) => void;
 }
 
 /**
@@ -32,7 +37,8 @@ export interface CrepeMenuActions {
  * settings toggle brings her back). After a flood of notifications it
  * also offers, for a while, to mute them. With the conversation daemon
  * running, it offers to talk to her and to make her forget it. A focus
- * session starts and ends from it too.
+ * session starts and ends from it too, and a reminder is typed into its
+ * entry, the pending ones being listed in a submenu where each can be cancelled.
  */
 export class CrepeMenu {
     private readonly settings: CrepeSettings;
@@ -46,6 +52,8 @@ export class CrepeMenu {
     private readonly talkItem: PopupMenu.PopupSwitchMenuItem;
     private readonly awayItem: PopupMenu.PopupMenuItem;
     private readonly focusItem: PopupMenu.PopupMenuItem;
+    private readonly reminderEntry: St.Entry;
+    private readonly remindersItem: PopupMenu.PopupSubMenuMenuItem;
     private readonly settingsHandlerIds: number[];
 
     constructor(sourceActor: Clutter.Actor, settings: CrepeSettings, actions: CrepeMenuActions) {
@@ -85,6 +93,22 @@ export class CrepeMenu {
         this.focusItem.connect('activate', () => this.actions.toggleFocus());
         this.menu.addMenuItem(this.focusItem);
 
+        // Not an item to activate: a row that only holds the entry, which takes the keyboard on its own.
+        const reminderRow = new PopupMenu.PopupBaseMenuItem({activate: false, can_focus: false});
+        this.reminderEntry = new St.Entry({
+            style_class: 'crepe-prompt-entry',
+            hint_text: 'Pense-bête… (15h30 appeler Paul)',
+            can_focus: true,
+            x_expand: true,
+        });
+        this.reminderEntry.clutter_text.connect('activate', () => this.submitReminder());
+        reminderRow.add_child(this.reminderEntry);
+        this.menu.addMenuItem(reminderRow);
+
+        this.remindersItem = new PopupMenu.PopupSubMenuMenuItem('Pense-bêtes');
+        this.remindersItem.visible = false;
+        this.menu.addMenuItem(this.remindersItem);
+
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         this.crawlItem = new PopupMenu.PopupSwitchMenuItem('Ramper', settings.crawl);
@@ -122,6 +146,7 @@ export class CrepeMenu {
         this.manager.addMenu(this.menu, 0);
         this.syncConversation();
         this.syncFocus();
+        this.syncReminders();
     }
 
     get isOpen(): boolean {
@@ -161,11 +186,34 @@ export class CrepeMenu {
             : `Mode concentration (${this.settings.focusMinutes} min)`;
     }
 
+    /** The list of pending reminders changed, with the menu open or not. */
+    syncReminders(): void {
+        const pending = this.actions.pendingReminders();
+        this.remindersItem.visible = pending.length > 0;
+        this.remindersItem.label.text = `Pense-bêtes (${pending.length})`;
+        this.remindersItem.menu.removeAll();
+        for (const {id, label} of pending) {
+            const item = new PopupMenu.PopupMenuItem(`${label}  ✕`);
+            item.connect('activate', () => this.actions.cancelReminder(id));
+            this.remindersItem.menu.addMenuItem(item);
+        }
+    }
+
     destroy(): void {
         for (const id of this.settingsHandlerIds)
             this.settings.gsettings.disconnect(id);
         this.manager.removeMenu(this.menu);
         this.menu.destroy();
+    }
+
+    private submitReminder(): void {
+        const input = this.reminderEntry.text.trim();
+        if (input.length === 0)
+            return;
+        this.reminderEntry.text = '';
+        // Closed first: her answer shows over her head, where the menu would sit.
+        this.close();
+        this.actions.addReminder(input);
     }
 
     private syncSwitches(): void {

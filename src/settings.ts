@@ -35,6 +35,8 @@ export type SettingsKey =
     | 'homesick-percent'
     | 'focus-minutes'
     | 'focus-dnd'
+    | 'hide-during-screencast'
+    | 'quiet-during-calls'
     | 'recap'
     | 'recap-hour'
     | 'last-recap-date'
@@ -42,7 +44,11 @@ export type SettingsKey =
     | 'outfits'
     | 'outfit-override'
     | 'birthday'
-    | 'last-outfit-lines';
+    | 'last-outfit-lines'
+    | 'reminders'
+    | 'ink'
+    | 'last-week-bilan'
+    | 'last-gag-date';
 
 /** Typed, cleanup-friendly view over the extension's GSettings. */
 export class CrepeSettings {
@@ -173,6 +179,16 @@ export class CrepeSettings {
         return this.gsettings.get_boolean('focus-dnd');
     }
 
+    /** Leave the stage while the screen is shared or recorded. */
+    get hideDuringScreencast(): boolean {
+        return this.gsettings.get_boolean('hide-during-screencast');
+    }
+
+    /** Keep quiet while an application uses the microphone or a camera. */
+    get quietDuringCalls(): boolean {
+        return this.gsettings.get_boolean('quiet-during-calls');
+    }
+
     get recap(): boolean {
         return this.gsettings.get_boolean('recap');
     }
@@ -221,6 +237,38 @@ export class CrepeSettings {
 
     set lastOutfitLines(value: string) {
         this.gsettings.set_string('last-outfit-lines', value);
+    }
+
+    /** The pending reminders, as JSON; `ReminderCenter` reads and writes it. */
+    get reminders(): string {
+        return this.gsettings.get_string('reminders');
+    }
+
+    set reminders(value: string) {
+        this.gsettings.set_string('reminders', value);
+    }
+
+    /** Spit ink when she is furious. */
+    get ink(): boolean {
+        return this.gsettings.get_boolean('ink');
+    }
+
+    /** "YYYY-MM-DD" of the Friday of the last weekly bilan, or "". */
+    get lastWeekBilan(): string {
+        return this.gsettings.get_string('last-week-bilan');
+    }
+
+    set lastWeekBilan(value: string) {
+        this.gsettings.set_string('last-week-bilan', value);
+    }
+
+    /** "YYYY-MM-DD" of the last day she brought up a fact of the week, or "". */
+    get lastGagDate(): string {
+        return this.gsettings.get_string('last-gag-date');
+    }
+
+    set lastGagDate(value: string) {
+        this.gsettings.set_string('last-gag-date', value);
     }
 
     get fractionX(): number {

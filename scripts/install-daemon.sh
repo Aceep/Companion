@@ -4,7 +4,7 @@
 #   scripts/install-daemon.sh [--no-enable]
 #
 # Copies the package to $XDG_DATA_HOME/crepe/daemon, keeps a venv with the
-# pinned SDK in $XDG_DATA_HOME/crepe/daemon-venv, installs the systemd user
+# pinned SDKs in $XDG_DATA_HOME/crepe/daemon-venv, installs the systemd user
 # unit, then reloads systemd and enables the unit unless --no-enable is given.
 # Safe to run again: every step replaces what the previous run left.
 set -euo pipefail
@@ -45,6 +45,14 @@ echo "Installing Python dependencies"
 "$venv_dir/bin/python" -m pip install --quiet --disable-pip-version-check -r "$source_dir/requirements.txt"
 "$venv_dir/bin/python" -c 'import gi; gi.require_version("Secret", "1"); from gi.repository import Gio, Secret' \
     || { echo "PyGObject with Gio and Secret is missing from the system Python" >&2; exit 1; }
+# The Agent SDK wheel (backend = "abonnement") bundles the Claude Code CLI, a
+# ~300 MB executable; no separate install and no Node are needed. Only the
+# subscription backend runs it, so a platform whose wheel lacks it is not fatal.
+if "$venv_dir/bin/python" -c 'import pathlib, sys, claude_agent_sdk; sys.exit(not (pathlib.Path(claude_agent_sdk.__file__).parent / "_bundled" / "claude").is_file())'; then
+    echo "The Agent SDK bundles its CLI; nothing else to install for backend = \"abonnement\"."
+else
+    echo "Note: the Agent SDK wheel has no bundled CLI on this platform; backend = \"abonnement\" needs a 'claude' executable on PATH." >&2
+fi
 
 echo "Installing the unit to $unit_path"
 mkdir -p "$unit_dir"
@@ -68,5 +76,7 @@ else
 fi
 echo "Store the API key once with:"
 echo "  PYTHONPATH=$install_dir $venv_dir/bin/python -m crepe_daemon --set-key"
+echo "For backend = \"abonnement\" (see daemon/README.md), after running 'claude setup-token':"
+echo "  PYTHONPATH=$install_dir $venv_dir/bin/python -m crepe_daemon --set-token claude"
 echo "Watcher tokens, if [watchers.gitlab] or [watchers.redmine] is configured:"
 echo "  PYTHONPATH=$install_dir $venv_dir/bin/python -m crepe_daemon --set-token gitlab|redmine"

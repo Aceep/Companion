@@ -38,7 +38,8 @@ Never blocks on the network or the keyring.
 
 | Key | Type | Meaning |
 |---|---|---|
-| `has_key` | `b` | An API key was found at the last check (startup, last request, or previous `Status` call) |
+| `has_key` | `b` | The credential of the active backend (API key, or subscription token) was found at the last check (startup, last request, or previous `Status` call) |
+| `backend` | `s` | Active backend: `api` or `abonnement` |
 | `model` | `s` | Model in use |
 | `requests_today` | `u` | API requests made today (local date), `Ask` and `Remark` together |
 | `daily_budget` | `u` | Daily request cap |
@@ -156,3 +157,45 @@ nudges of the same kind by 5.5 s. The first look of a watcher, ever, only
 records what exists: it sends no `pipeline_echec` or `ticket_nouveau`. The
 `git`, `machine` and `ics` watchers report a current state, not past events,
 so their first look may nudge.
+
+### Kinds sent by the terminal hook
+
+`scripts/crepe-shell-hook.bash` calls `Nudge` itself, without the daemon, with two more kinds. The extension accepts them from any caller, and the daemon's `Nudger` knows them.
+
+| Kind | `text` |
+|---|---|
+| `commande_echec` | `<command> · <exit code>`: the first word of a command that failed, e.g. `make · 2`. Exit codes 130 and 148 (Ctrl+C, Ctrl+Z) are never sent. The extension shows at most one per 60 s |
+| `commande_longue` | `<command> · <duration>` for a command that succeeded after at least `CREPE_LONG_SECONDS` seconds (60 by default), e.g. `npm · 3 min 12 s`. The extension drops it while a terminal window has the focus |
+
+### Meetings
+
+The extension keeps quiet while the screen is shared or recorded (she is hidden), or while a microphone or a camera is in use (she says nothing). Nudges that arrive then are not lost: the extension counts them per kind (20 at most) and says one summary line when the meeting ends. Nothing changes for callers: `Nudge` is accepted as usual. The signals come from the shell itself, so the daemon has nothing to report.
+
+### Music from other devices
+
+The `spotify` watcher sends two more kinds, for what plays on any of her Spotify devices (the desktop's own MPRIS player is followed by the extension itself):
+
+| Kind | Sent by | `text` |
+|---|---|---|
+| `musique` | `spotify` | `<title> — <artist>` when a new track starts (separator: space, em dash, space) |
+| `musique_fin` | `spotify` | Empty, or the total duration, after a long listening session stops |
+
+The extension maps them to its music remarks (`musique` with the title, `silence`), and only when "Commente la musique" is on. To say one remark per track whatever the source, it ignores a `musique` whose title is the one the MPRIS player last reported (or that arrived within ten minutes of the same title), and any `musique` or `musique_fin` while an MPRIS player is playing. Neither kind counts as a script nudge for her statistics or her meeting summary. The usual limit of one nudge per kind every 5 s applies.
+
+### `Remind(s when, s text) -> (s confirmation)`
+
+Not a watcher call: any script may set a reminder (pense-bête) through the same object as `Nudge`.
+
+```sh
+gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe \
+    --method io.github.aceep.Crepe.Remind "dans 20 min" "sortir le pain"
+```
+
+`when` is French, relative to now: `15h`, `15h30`, `15:30`, `à 15h`, `dans 20 min`, `dans 2 h`, `dans 1h30`, `demain 9h`, `demain à 9h15`. A clock time already past today means tomorrow; a delay is at most 48 h. `text` may be empty when `when` already holds it (`"15h30 : appeler Paul"`), and `when` may be empty when `text` holds both. The reply is the line she says, e.g. `Je m'en occupe demain à 9h.`
+
+| Error name | When |
+|---|---|
+| `io.github.aceep.Crepe.Error.BadTime` | The time or the text cannot be read; the message is French and carries examples |
+| `io.github.aceep.Crepe.Error.TooMany` | Already 20 reminders pending |
+
+Reminders are kept in the `reminders` setting and survive a re-login; those overdue when she starts are delivered right away. A reminder's bubble stays until she is clicked, is repeated every 5 minutes up to 3 times, and waits for the end of a meeting. `Remind` is not rate limited.

@@ -580,6 +580,33 @@
     "L'agenda t'appelle. Pas moi.",
     "{texte}. Courage. Prends un café avant."
   ],
+  "commande_echec": [
+    "{texte}. Évidemment.",
+    "Ça a planté : {texte}. Je dis ça, je dis rien.",
+    "{texte}, c'est rouge. Respire.",
+    "Le terminal a dit non. {texte}.",
+    "Encore. {texte}. Tu relis le message, ou pas ?",
+    "{texte} : raté. Classique.",
+    "Code d'erreur, {texte}. Ça arrive aux meilleurs. Pas souvent.",
+    "Ça a échoué. Moi je regarde ailleurs.",
+    "Tu as lu l'erreur ? Non. Bon.",
+    "{texte}. Tu veux que je compte les essais ?",
+    "Le terminal est déçu. Moi aussi, un peu.",
+    "Raté. On relance en croisant les tentacules."
+  ],
+  "commande_longue": [
+    "{texte}. J'ai failli m'endormir.",
+    "C'est fini : {texte}. Enfin.",
+    "{texte}. Le temps que ça mette, j'ai pu méditer.",
+    "Ta commande a terminé. {texte}, c'est long quand même.",
+    "{texte}. Je te l'avais bien dit que ça traînait.",
+    "Fini, {texte}. Tu peux revenir parmi nous.",
+    "{texte}. J'ai compté les pixels de l'écran en attendant.",
+    "Ça a pris son temps : {texte}.",
+    "Terminé. Tu étais où pendant {texte} ?",
+    "Enfin, ta commande est revenue. {texte}.",
+    "{texte}. Même moi j'étais impatiente."
+  ],
   "fin_concentration": [
     "C'est fini. Tu peux de nouveau te distraire.",
     "Concentration terminée. J'ai tenu, moi.",
@@ -587,6 +614,28 @@
     "Fin du silence. Tu as fait quelque chose, au moins.",
     "C'était long. Pour moi, en tout cas.",
     "On peut se reparler. Si tu veux. Ou pas."
+  ],
+  "reunion_fin_resume": [
+    "Pendant ta réu : {resume}.",
+    "Pendant que tu parlais : {resume}. Je me suis tue.",
+    "Fin de la réu. Au programme : {resume}.",
+    "Pendant ton appel, il y a eu {resume}. De rien.",
+    "Tu as raté : {resume}. J'ai pas bougé un tentacule.",
+    "Alors, pendant l'appel : {resume}. Voilà.",
+    "Réu finie. {resume}. Je te laisse digérer.",
+    "Pendant ce temps-là : {resume}. Le monde a continué.",
+    "Je me suis tenue tranquille. Mais : {resume}.",
+    "Bilan de ta réu côté machine : {resume}."
+  ],
+  "reunion_fin_rien": [
+    "Réu finie. Rien à signaler pendant ce temps.",
+    "Pendant ton appel, rien. Même pas une notif. Louche.",
+    "Fini ? Il s'est rien passé, je te rassure.",
+    "Pas un message pendant ta réu. Le calme avant le reste.",
+    "Rien à rapporter. J'ai bien gardé la maison.",
+    "Silence radio pendant l'appel. Ça change.",
+    "Tu peux souffler : rien n'a cassé pendant ta réu.",
+    "Réu terminée. Moi, j'ai rien fait, comme d'habitude."
   ],
   "esquive": [
     "Pardon, je gêne. Comme d'habitude.",
@@ -636,5 +685,108 @@
     "Je ne te vois plus très bien. C'est voulu.",
     "Il fait chaud. Je mets des lunettes et je ne fais rien.",
     "Mode été activé. Rien d'autre ne change."
+  ],
+  "pense_bete": [
+    "Pense-bête de {heure} : {texte}. Tu me remercieras plus tard.",
+    "{heure}. {texte}. C'est toi qui me l'as demandé.",
+    "Ding. {texte}. Voilà, je l'ai dit.",
+    "Il est {heure}, et {texte}. Je fais juste passer le message.",
+    "Tu voulais qu'on te le rappelle : {texte}.",
+    "{texte}. Je suis un post-it avec des tentacules.",
+    "Alerte de {heure} : {texte}. Clique, que je me taise.",
+    "Tu m'as dit de te le rappeler : {texte}. Je tiens parole, moi."
+  ],
+  "pense_bete_relance": [
+    "Je répète : {texte}. Clique-moi dessus, c'est pas compliqué.",
+    "Toujours là. {texte}.",
+    "{texte}. Oui, encore. Non, je ne lâche pas.",
+    "Tu fais comme si j'étais pas là ? {texte}.",
+    "Deuxième avis : {texte}. Clique, ça me calmera.",
+    "Je vais rester plantée là jusqu'à ce que tu cliques. {texte}.",
+    "{texte}. Je peux faire ça toute la journée.",
+    "Ça ne s'est pas fait tout seul. {texte}."
+  ],
+  "pense_bete_ok": [
+    "Je te le rappelle {quand}.",
+    "C'est noté, {quand}.",
+    "Je m'en occupe {quand}. Une pieuvre, ça n'oublie rien.",
+    "Entendu, {quand}. Ne compte pas sur moi pour être aimable.",
+    "Retenu : {quand}.",
+    "Je te le rappelle {quand}. Fais pas semblant d'avoir oublié.",
+    "Ça marche, {quand}. Je suis meilleure que ta mémoire.",
+    "Noté, {quand}. Je ne dormirai pas, pour une fois."
+  ],
+  "pense_bete_incompris": [
+    "Je n'ai pas compris l'heure. Essaie « 15h30 appeler Paul ».",
+    "Ça ne ressemble à aucune heure que je connaisse. Essaie « dans 20 min sortir le pain ».",
+    "Pas compris. Un truc comme « demain 9h rendez-vous » ?",
+    "Hum. Une heure, puis le texte : « 15h appeler Paul ».",
+    "Je lis pas dans les pensées. « dans 1h30 pause », par exemple.",
+    "C'est quand, exactement ? « demain à 9h15 dentiste », par exemple.",
+    "Je ne sais pas quand c'est, ni quoi. « 17h30 appeler maman » marche très bien.",
+    "Raté. Essaie « 15:30 : réunion » ou « dans 2 h pause »."
+  ],
+  "pense_bete_en_retard": [
+    "Tu avais un pense-bête à {heure} : {texte}. Oui, c'est en retard.",
+    "{heure}, c'était l'heure de : {texte}. Je l'ai gardé au chaud.",
+    "J'ai failli oublier. Pas moi, toi. {texte}, c'était à {heure}.",
+    "En retard : {texte} (prévu à {heure}). Je ne juge pas. Si.",
+    "Tu étais pas là à {heure}. {texte}.",
+    "Pense-bête d'avant : {texte}, prévu à {heure}. Mieux vaut tard que jamais.",
+    "{texte}. C'était pour {heure}. Je t'attendais.",
+    "Tu avais un truc à {heure} : {texte}. Je dis ça, je dis rien."
+  ],
+  "pense_bete_plein": [
+    "Vingt pense-bêtes ? Je ne suis pas un agenda. Annules-en un.",
+    "C'est plein. Je retiens vingt trucs, pas vingt et un.",
+    "Ma mémoire est pleine. Efface-en un dans mon menu.",
+    "Vingt, ça suffit. Fais le ménage.",
+    "Trop de pense-bêtes. Commence par en faire un."
+  ],
+  "encre": [
+    "Tiens, de l'encre.",
+    "Je ne le fais pas exprès. Si.",
+    "Voilà ce qu'on récolte à me titiller.",
+    "Une pieuvre, ça éclabousse. Bon à savoir.",
+    "Nettoie ça toi-même.",
+    "C'est ça ou la batte."
+  ],
+  "rappel_pipeline": [
+    "Au fait, {jour} : {nombre} pipelines cassés. Je dis ça…",
+    "Je repense à {jour}. {nombre} pipelines rouges. Passons.",
+    "{nombre} pipelines en échec {jour}. Je note, je ne juge pas.",
+    "Tu te souviens de {jour} ? {nombre} pipelines cassés. Moi oui.",
+    "Rien à voir, mais {jour} : {nombre} pipelines en échec."
+  ],
+  "rappel_commandes": [
+    "{jour}, {nombre} commandes ratées dans le terminal. Je dis ça comme ça.",
+    "Au fait, {jour} : {nombre} commandes en échec. Un record, presque.",
+    "Je repense à {jour}. {nombre} commandes qui ont planté. Courage.",
+    "{nombre} commandes ratées {jour}. Le terminal s'en souvient aussi.",
+    "Tu as tapé n'importe quoi {jour} : {nombre} échecs. Voilà."
+  ],
+  "rappel_bouderie": [
+    "{jour}, tu m'as fait bouder {nombre} fois. Je n'ai pas oublié.",
+    "Je repense à {jour}. {nombre} bouderies. À cause de toi.",
+    "Rancunière ? Non. Mais {jour}, {nombre} fois, quand même.",
+    "Au fait, {jour} : {nombre} fois la batte. Je dis ça…",
+    "On en reparlera : {jour}, {nombre} bouderies. Tout est noté."
+  ],
+  "rappel_focus": [
+    "{jour}, {nombre} sessions de concentration. Tu étais en forme.",
+    "Au fait, {jour} : {nombre} sessions de concentration. Et moi, immobile.",
+    "Je repense à {jour}. {nombre} fois concentré. Impressionnant, presque.",
+    "{nombre} sessions de concentration {jour}. Ça pourrait devenir une habitude.",
+    "{jour} : {nombre} sessions sans me parler. J'ai compté."
+  ],
+  "bilan_semaine": [
+    "Bilan de la semaine : {resume}. Bon week-end, je suppose.",
+    "Cette semaine : {resume}. Voilà. Tu peux partir.",
+    "Vendredi, donc. Au compteur : {resume}.",
+    "Semaine finie. {resume}. Je ne commente pas.",
+    "Résumé de la semaine : {resume}. Je te laisse t'en remettre.",
+    "Ta semaine en une ligne : {resume}.",
+    "Rien de notable cette semaine. Soit tu es un ange, soit j'ai mal compté.",
+    "Semaine calme, côté chiffres. Profites-en."
   ]
 }

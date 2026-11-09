@@ -9,7 +9,12 @@ const DAYS_KEPT = 30;
 /** Each write goes through dconf to disk; once a minute is plenty for counters nobody reads live. */
 const WRITE_EVERY = MINUTE;
 
-/** What she counts, per day. */
+/**
+ * What she counts, per day. `pipelines`, `commands`, `ignored` and `focus`
+ * (failed pipelines and commands, reminders left unanswered, focus
+ * sessions started) feed her week memory; days stored before they existed
+ * simply read 0.
+ */
 export const STAT_COUNTERS = [
     'notifications',
     'errors',
@@ -22,6 +27,10 @@ export const STAT_COUNTERS = [
     'talks',
     'crawls',
     'remarks',
+    'pipelines',
+    'commands',
+    'ignored',
+    'focus',
 ] as const;
 
 export type StatCounter = typeof STAT_COUNTERS[number];
@@ -130,6 +139,11 @@ export class StatsStore {
             this.cancelWrite = null;
             this.flush();
         });
+    }
+
+    /** A copy of every day kept, for the week memory to read. */
+    allDays(): StatsDays {
+        return new Map([...this.days].map(([day, counts]) => [day, {...counts}]));
     }
 
     /** A copy: whoever reads it cannot change the counters by accident. */

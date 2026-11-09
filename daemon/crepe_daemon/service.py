@@ -102,7 +102,7 @@ class BrainService:
         )
 
     def _on_name_acquired(self, connection: Gio.DBusConnection, name: str) -> None:
-        log.info("owning %s (fake=%s, model=%s)", name, self.fake, self.brain.config.model)
+        log.info("owning %s (fake=%s, backend=%s, model=%s)", name, self.fake, self.brain.config.backend, self.brain.config.model)
 
     def _on_name_lost(self, connection: Gio.DBusConnection | None, name: str) -> None:
         if connection is None:
@@ -143,6 +143,7 @@ class BrainService:
         config = self.brain.config
         return {
             "has_key": GLib.Variant("b", self._has_key),
+            "backend": GLib.Variant("s", config.backend),
             "model": GLib.Variant("s", config.model),
             "requests_today": GLib.Variant("u", self.brain.counter.count),
             "daily_budget": GLib.Variant("u", config.daily_budget),

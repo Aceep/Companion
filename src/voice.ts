@@ -46,29 +46,56 @@ export const VOICE_EVENTS = [
     'travail_non_commite',
     'machine',
     'agenda',
+    'commande_echec',
+    'commande_longue',
     'fin_concentration',
+    'reunion_fin_resume',
+    'reunion_fin_rien',
     'esquive',
     'bilan',
     'tenue_fete',
     'tenue_vendredi',
     'tenue_hiver',
     'tenue_ete',
+    'encre',
+    'pense_bete',
+    'pense_bete_relance',
+    'pense_bete_ok',
+    'pense_bete_incompris',
+    'pense_bete_en_retard',
+    'pense_bete_plein',
+    'rappel_pipeline',
+    'rappel_commandes',
+    'rappel_bouderie',
+    'rappel_focus',
+    'bilan_semaine',
 ] as const;
 
 export type VoiceEvent = typeof VOICE_EVENTS[number];
 
+/**
+ * Events she tells on purpose, outside the chatter's rules: reminders
+ * (`pick()`), and a fact of the week or the weekly bilan (`tell()`).
+ */
+export type ToldEvent = 'pense_bete' | 'pense_bete_relance' | 'pense_bete_ok' | 'pense_bete_incompris' |
+    'pense_bete_en_retard' | 'pense_bete_plein' | 'rappel_pipeline' | 'rappel_commandes' | 'rappel_bouderie' |
+    'rappel_focus' | 'bilan_semaine';
+
 /** Events the rest of the extension fires; the time-of-day ones are only chosen here, the recap has `recap()`. */
-export type TriggerEvent = Exclude<VoiceEvent, 'matin' | 'soir' | 'vendredi' | 'bilan'>;
+export type TriggerEvent = Exclude<VoiceEvent, 'matin' | 'soir' | 'vendredi' | 'bilan' | ToldEvent>;
 
 /**
  * What a line may refer to between braces: `{titre}` is the track playing,
- * `{texte}` what a script sent with a nudge, `{tickets}` how many tickets
- * are open as a script last said, `{heure}` is filled here. The recap's
- * counters are `{notifs}`, `{erreurs}`, `{succes}`, `{clics}` and `{nudges}`.
+ * `{texte}` what a script sent with a nudge (or what a reminder is about),
+ * `{tickets}` how many tickets are open as a script last said, `{heure}`
+ * is filled here with the time now, or with a reminder's own time.
+ * `{quand}` is when a reminder will ring ("à 15h", "demain à 9h"), `{jour}`
+ * and `{nombre}` the day and the count of a fact she brings up again. The recap's
+ * counters are `{notifs}`, `{erreurs}`, `{succes}`, `{clics}` and `{nudges}`. `{resume}` is the summary of what scripts said during a meeting.
  */
 export type LineValues = Readonly<Partial<Record<Placeholder, string>>>;
 
-const PLACEHOLDERS = ['heure', 'titre', 'texte', 'tickets', 'notifs', 'erreurs', 'succes', 'clics', 'nudges'] as const;
+const PLACEHOLDERS = ['heure', 'titre', 'texte', 'tickets', 'notifs', 'erreurs', 'succes', 'clics', 'nudges', 'resume', 'quand', 'jour', 'nombre'] as const;
 type Placeholder = typeof PLACEHOLDERS[number];
 const PLACEHOLDER_PATTERN = /\{([a-z]+)\}/g;
 
@@ -117,7 +144,11 @@ const PROBABILITY: Record<TriggerEvent, number> = {
     travail_non_commite: 1.0,
     machine: 1.0,
     agenda: 1.0,
+    commande_echec: 1.0,
+    commande_longue: 1.0,
     fin_concentration: 1.0,
+    reunion_fin_resume: 1.0,
+    reunion_fin_rien: 1.0,
     // Moving out of the way is the point; saying so every time would be the opposite.
     esquive: 1 / 3,
     // Once a day at most per outfit already: when it comes, it is said.
@@ -125,6 +156,8 @@ const PROBABILITY: Record<TriggerEvent, number> = {
     tenue_vendredi: 1.0,
     tenue_hiver: 1.0,
     tenue_ete: 1.0,
+    // The ink goes with a sulk's own poke: it takes the place of that poke's line.
+    encre: 1.0,
 };
 
 /**
@@ -139,7 +172,8 @@ const DIRECT_EVENTS: ReadonlySet<TriggerEvent> = new Set([
     'retour', 'clic', 'agacee', 'enervee', 'boude', 'trop_de_notifs', 'pause', 'couche_tard', 'fin_du_chut',
     'enfin', 'perplexe', 'batte_rangee', 'retour_maison', 'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne',
     'depart', 'retour_furieuse', 'tache_terminee', 'attention', 'pipeline_echec', 'ticket_nouveau', 'tickets_ouverts',
-    'travail_non_commite', 'machine', 'agenda', 'fin_concentration',
+    'travail_non_commite', 'machine', 'agenda', 'commande_echec', 'commande_longue', 'fin_concentration',
+    'reunion_fin_resume', 'reunion_fin_rien', 'encre',
 ]);
 
 /**
@@ -159,7 +193,8 @@ const INTERRUPTING_EVENTS: ReadonlySet<TriggerEvent> = new Set([
     'agacee', 'enervee', 'boude', 'trop_de_notifs', 'enfin', 'perplexe', 'batte_rangee', 'retour_maison',
     'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne', 'depart', 'retour_furieuse',
     'tache_terminee', 'attention', 'pipeline_echec', 'ticket_nouveau', 'tickets_ouverts',
-    'travail_non_commite', 'machine', 'agenda', 'fin_concentration',
+    'travail_non_commite', 'machine', 'agenda', 'commande_echec', 'commande_longue', 'fin_concentration',
+    'reunion_fin_resume', 'reunion_fin_rien', 'encre',
 ]);
 
 /** Only greetings and plain clicks get a remark about the hour; a sulk does not chat about the weather. */
@@ -250,6 +285,33 @@ export class Voice {
     }
 
     /**
+     * A reminder's line: said whatever the talk switch, the cooldown or
+     * the bubble say, since she was asked for it. Null only when no line
+     * can be filled from `values`.
+     */
+    pick(event: ToldEvent, values: LineValues = {}): string | null {
+        const line = this.pickLine(event, values, null);
+        if (line !== null)
+            this.lastSpokenAt = Date.now();
+        return line;
+    }
+
+    /**
+     * A fact of the week or the weekly bilan, under the rules of the
+     * recap: the talk switch, and the bubble free. `needsValues` keeps
+     * only the lines that use one of `values` (the bilan has others for
+     * a week with nothing in it). Null when she keeps quiet.
+     */
+    tell(event: ToldEvent, values: LineValues, needsValues: boolean): string | null {
+        if (!this.settings.talk || this.isBubbleShowing())
+            return null;
+        const line = this.pickLine(event, values, needsValues ? 'any' : null);
+        if (line !== null)
+            this.lastSpokenAt = Date.now();
+        return line;
+    }
+
+    /**
      * Lines with a placeholder missing from `values` are never picked.
      * Lines with `{tickets}` only one time in three when it is known.
      */
@@ -269,7 +331,7 @@ export class Voice {
         const date = new Date(now);
         const tellsTime = this.isFirstMorningGreeting(event, date);
         const chosen = tellsTime ? 'matin' : this.withTimeOfDay(event, now);
-        const line = this.pickWithTickets(chosen, {...values, heure: clock(date)}, tellsTime);
+        const line = this.pickWithTickets(chosen, {heure: clock(date), ...values}, tellsTime);
         if (line === null)
             return null;
         this.lastSpokenAt = now;
@@ -327,7 +389,9 @@ export class Voice {
         this.lastLine.set(event, line);
         const filled = line.replace(PLACEHOLDER_PATTERN, (_match, name: Placeholder) => values[name] ?? '');
         // A cut `{texte}` already ends with an ellipsis: the line's own full stop would double it.
-        return filled.replace(/…\./g, '…');
+        // A line that opens on a placeholder ("{jour}, ...") still starts with a capital.
+        const sentence = filled.replace(/…\./g, '…');
+        return sentence.charAt(0).toUpperCase() + sentence.slice(1);
     }
 }
 

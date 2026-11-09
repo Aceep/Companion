@@ -39,6 +39,21 @@ class ConfigTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": "/somewhere"}):
             self.assertEqual(default_config_path(), Path("/somewhere/crepe/daemon.toml"))
 
+    def test_backend_defaults_to_the_api(self):
+        self.assertEqual(parse_config({}).backend, "api")
+
+    def test_subscription_backend_is_accepted(self):
+        self.assertEqual(parse_config({"backend": "abonnement"}).backend, "abonnement")
+
+    def test_unknown_backend_is_rejected(self):
+        for value in ("sdk", "", "API", 1, None):
+            with self.subTest(value=value), self.assertRaises(ConfigError):
+                parse_config({"backend": value})
+
+    def test_model_still_applies_to_the_subscription_backend(self):
+        config = parse_config({"backend": "abonnement", "model": "haiku"})
+        self.assertEqual((config.backend, config.model), ("abonnement", "haiku"))
+
     def test_unknown_keys_are_ignored(self):
         with self.assertLogs("crepe_daemon.config", level="WARNING"):
             self.assertEqual(parse_config({"colour": "blue"}), Config())
@@ -147,6 +162,14 @@ class LocalWatcherConfigTest(unittest.TestCase):
     def test_git_nag_after_below_a_minute_is_rejected(self):
         with self.assertRaisesRegex(ConfigError, "watchers.git.nag_after_minutes must be a number >= 1"):
             parse_config({"watchers": {"git": {"paths": ["/x"], "nag_after_minutes": 0}}})
+
+    def test_git_unpushed_defaults_to_true(self):
+        config = parse_config({"watchers": {"git": {"paths": ["/x"]}}})
+        self.assertTrue(config.git.unpushed)
+
+    def test_git_unpushed_must_be_a_boolean(self):
+        with self.assertRaisesRegex(ConfigError, "watchers.git.unpushed must be true or false"):
+            parse_config({"watchers": {"git": {"paths": ["/x"], "unpushed": "non"}}})
 
     def test_machine_section_alone_gives_defaults(self):
         with mock.patch.dict(os.environ, {"HOME": "/home/someone"}):

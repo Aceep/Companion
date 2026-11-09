@@ -4,7 +4,7 @@ import type {MoodLevel} from './mood.js';
 const EVENTS_KEPT = 5;
 const LINES_KEPT = 3;
 
-const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'] as const;
+export const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'] as const;
 
 export interface RecentEvent {
     ago_s: number;

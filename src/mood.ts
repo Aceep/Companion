@@ -79,6 +79,18 @@ export class Annoyance {
     }
 
     /**
+     * A point of irritation that is not a poke (a reminder she keeps being
+     * ignored on): it never tips her into sulking by itself, it only gets
+     * her closer to it.
+     */
+    irritate(): void {
+        const now = this.now();
+        const current = this.scoreAt(now);
+        this.scoreAtLastPoke = Math.max(current, Math.min(ANGRY_FROM - 1, current + 1));
+        this.lastPokeAt = now;
+    }
+
+    /**
      * Back from storming off: down to just angry, so the next poke does
      * not send her away again, and still sulking for a while.
      */

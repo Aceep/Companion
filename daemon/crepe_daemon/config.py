@@ -9,6 +9,10 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+DEFAULT_BACKEND = "api"
+# The second backend, billed to the owner's subscription (see agent_sdk.py).
+SUBSCRIPTION_BACKEND = "abonnement"
+BACKENDS = (DEFAULT_BACKEND, SUBSCRIPTION_BACKEND)
 DEFAULT_MODEL = "claude-haiku-5-5"
 DEFAULT_DAILY_BUDGET = 200
 DEFAULT_MAX_REPLY_CHARS = 160
@@ -27,9 +31,15 @@ DEFAULT_ICS_INTERVAL_MINUTES = 15
 # A published calendar changes rarely and its server may throttle.
 MIN_ICS_INTERVAL_MINUTES = 5
 DEFAULT_ICS_WARN_MINUTES = 10
+DEFAULT_SPOTIFY_PORT = 8898
+DEFAULT_SPOTIFY_INTERVAL_SECONDS = 30
+DEFAULT_SPOTIFY_IDLE_INTERVAL_SECONDS = 120
+# Spotify publishes no rate limit; staying well apart avoids a 429 on a hobby app.
+MIN_SPOTIFY_INTERVAL_SECONDS = 15
 MIN_INTERVAL_MINUTES = 1
 # CREPE_DEV=1 lets a manual test see several ticks in a couple of minutes.
 DEV_MIN_INTERVAL_MINUTES = 0.05
+DEV_MIN_SPOTIFY_INTERVAL_SECONDS = 3
 DEV_ENV_VAR = "CREPE_DEV"
 
 
@@ -58,6 +68,8 @@ class GitConfig:
     paths: tuple[str, ...]
     interval_minutes: float = DEFAULT_GIT_INTERVAL_MINUTES
     nag_after_minutes: float = DEFAULT_GIT_NAG_AFTER_MINUTES
+    # False: only uncommitted work nags, commits waiting for a push are left alone.
+    unpushed: bool = True
 
 
 @dataclass(frozen=True)
@@ -82,7 +94,18 @@ class IcsConfig:
 
 
 @dataclass(frozen=True)
+class SpotifyConfig:
+    # Public identifier of her own Spotify app (PKCE has no client secret).
+    client_id: str
+    redirect_port: int = DEFAULT_SPOTIFY_PORT
+    interval_seconds: float = DEFAULT_SPOTIFY_INTERVAL_SECONDS
+    # Used once nothing has played for a while.
+    idle_interval_seconds: float = DEFAULT_SPOTIFY_IDLE_INTERVAL_SECONDS
+
+
+@dataclass(frozen=True)
 class Config:
+    backend: str = DEFAULT_BACKEND
     model: str = DEFAULT_MODEL
     daily_budget: int = DEFAULT_DAILY_BUDGET
     remarks: bool = False
@@ -93,6 +116,7 @@ class Config:
     git: GitConfig | None = None
     machine: MachineConfig | None = None
     ics: IcsConfig | None = None
+    spotify: SpotifyConfig | None = None
 
 
 def default_config_path() -> Path:
@@ -118,9 +142,13 @@ def load_config(path: Path | None = None) -> Config:
 
 
 def parse_config(raw: dict, dev: bool = False) -> Config:
-    known = {"model", "daily_budget", "remarks", "max_reply_chars", "watchers"}
+    known = {"backend", "model", "daily_budget", "remarks", "max_reply_chars", "watchers"}
     for key in sorted(set(raw) - known):
         log.warning("ignoring unknown config key %r", key)
+
+    backend = raw.get("backend", DEFAULT_BACKEND)
+    if backend not in BACKENDS:
+        raise ConfigError("backend must be " + " or ".join(f'"{name}"' for name in BACKENDS))
 
     model = raw.get("model", DEFAULT_MODEL)
     if not isinstance(model, str) or not model.strip():
@@ -141,11 +169,12 @@ def parse_config(raw: dict, dev: bool = False) -> Config:
     watchers = raw.get("watchers", {})
     if not isinstance(watchers, dict):
         raise ConfigError("watchers must be a table")
-    for key in sorted(set(watchers) - {"gitlab", "redmine", "git", "machine", "ics"}):
+    for key in sorted(set(watchers) - {"gitlab", "redmine", "git", "machine", "ics", "spotify"}):
         log.warning("ignoring unknown watcher %r", key)
     min_interval = DEV_MIN_INTERVAL_MINUTES if dev else MIN_INTERVAL_MINUTES
 
     return Config(
+        backend=backend,
         model=model.strip(),
         daily_budget=daily_budget,
         remarks=remarks,
@@ -155,6 +184,7 @@ def parse_config(raw: dict, dev: bool = False) -> Config:
         git=_parse_git(watchers["git"], min_interval) if "git" in watchers else None,
         machine=_parse_machine(watchers["machine"], min_interval) if "machine" in watchers else None,
         ics=_parse_ics(watchers["ics"], dev) if "ics" in watchers else None,
+        spotify=_parse_spotify(watchers["spotify"], dev) if "spotify" in watchers else None,
     )
 
 
@@ -183,16 +213,20 @@ def _parse_redmine(raw: object, min_interval: float) -> RedmineConfig:
 
 
 def _parse_git(raw: object, min_interval: float) -> GitConfig:
-    section = _watcher_section(raw, "git", {"paths", "interval_minutes", "nag_after_minutes"})
+    section = _watcher_section(raw, "git", {"paths", "interval_minutes", "nag_after_minutes", "unpushed"})
     if "paths" not in section:
         raise ConfigError("watchers.git.paths is required: a list of repos or folders of repos")
     paths = _parse_path_list(section, "git", "paths", ())
     if not paths:
         raise ConfigError("watchers.git.paths must not be empty")
+    unpushed = section.get("unpushed", True)
+    if not isinstance(unpushed, bool):
+        raise ConfigError("watchers.git.unpushed must be true or false")
     return GitConfig(
         paths=paths,
         interval_minutes=_parse_interval(section, "git", DEFAULT_GIT_INTERVAL_MINUTES, min_interval),
         nag_after_minutes=_parse_number(section, "git", "nag_after_minutes", DEFAULT_GIT_NAG_AFTER_MINUTES, 1),
+        unpushed=unpushed,
     )
 
 
@@ -220,6 +254,27 @@ def _parse_ics(raw: object, dev: bool) -> IcsConfig:
         url=url.strip(),
         interval_minutes=_parse_interval(section, "ics", DEFAULT_ICS_INTERVAL_MINUTES, min_interval),
         warn_minutes=_parse_number(section, "ics", "warn_minutes", DEFAULT_ICS_WARN_MINUTES, 1),
+    )
+
+
+def _parse_spotify(raw: object, dev: bool) -> SpotifyConfig:
+    section = _watcher_section(raw, "spotify", {"client_id", "redirect_port", "interval_seconds", "idle_interval_seconds"})
+    client_id = section.get("client_id")
+    if not isinstance(client_id, str) or not client_id.strip():
+        raise ConfigError("watchers.spotify.client_id is required: the Client ID of your Spotify app")
+    port = section.get("redirect_port", DEFAULT_SPOTIFY_PORT)
+    # Below 1024 a regular user cannot listen.
+    if not _is_int(port) or not 1024 <= port <= 65535:
+        raise ConfigError("watchers.spotify.redirect_port must be an integer between 1024 and 65535")
+    min_interval = DEV_MIN_SPOTIFY_INTERVAL_SECONDS if dev else MIN_SPOTIFY_INTERVAL_SECONDS
+    interval = _parse_number(section, "spotify", "interval_seconds", DEFAULT_SPOTIFY_INTERVAL_SECONDS, min_interval)
+    idle_interval = _parse_number(
+        section, "spotify", "idle_interval_seconds", DEFAULT_SPOTIFY_IDLE_INTERVAL_SECONDS, min_interval
+    )
+    if idle_interval < interval:
+        raise ConfigError("watchers.spotify.idle_interval_seconds must not be shorter than interval_seconds")
+    return SpotifyConfig(
+        client_id=client_id.strip(), redirect_port=port, interval_seconds=interval, idle_interval_seconds=idle_interval
     )
 
 

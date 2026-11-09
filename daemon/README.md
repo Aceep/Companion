@@ -8,7 +8,9 @@ extension keeps using its canned lines.
 
 Dependencies: Python 3.11+, PyGObject with the `Gio` and `Secret` (libsecret)
 typelibs from the system, a running secret service (gnome-keyring), and the
-`anthropic` SDK, which the install script puts in a dedicated venv.
+`anthropic` and `claude-agent-sdk` packages, which the install script puts in
+a dedicated venv (the second one is only used by the optional
+[subscription backend](#backend-abonnement)).
 
 ## Install
 
@@ -46,6 +48,102 @@ The running daemon reads the key on every request, so no restart is needed
 after `--set-key`. The `CREPE_API_KEY` environment variable, when set and
 non-empty, wins over the keyring (meant for tests).
 
+## Backend abonnement
+
+An alternative to the API key: replies are produced by the Claude Agent SDK
+(`claude-agent-sdk`, pinned in `requirements.txt`), which drives the Claude
+Code CLI as a subprocess, authenticated with a long-lived token tied to your
+Claude subscription instead of an API key. The default stays `backend = "api"`.
+
+Setup:
+
+1. Create the token, in a terminal: `claude setup-token` (it opens a browser
+   to sign in and prints the token once).
+2. Store it in the keyring (input hidden):
+
+   ```sh
+   cd ~/.local/share/crepe/daemon
+   ../daemon-venv/bin/python -m crepe_daemon --set-token claude
+   ```
+
+3. In `daemon.toml` set `backend = "abonnement"`, then
+   `systemctl --user restart crepe-daemon`.
+
+`--forget-token claude` removes the token. `CREPE_CLAUDE_OAUTH_TOKEN`, when
+set and non-empty, wins over the keyring (meant for tests). The token is read
+at every request, so a new one needs no restart. Without a token the daemon
+answers like it does without an API key (`NoKey`), and the journal says to run
+`claude setup-token` then `--set-token claude`. `--status` prints
+`backend: api` or `backend: abonnement`, and `has_key` then refers to that
+backend's credential.
+
+`model` is passed as is: the CLI knows full ids such as `claude-haiku-5-5`
+and the aliases `haiku`, `sonnet` and `opus`.
+
+What the wheel brings: `claude-agent-sdk` bundles the Claude Code CLI as a
+~320 MB executable inside the package (version 0.2.178 ships CLI 2.1.318 for
+Linux x86_64), so there is no separate install and no Node. The install
+script says so; on a platform whose wheel has no bundled CLI it warns, and the
+backend then looks for a `claude` executable on `PATH`.
+
+Calls count against the usage limits of the subscription, which Claude Code
+and the other Claude apps on the same account share. A call that hits the
+limit fails with an `Upstream` error ("subscription usage limit reached").
+`daily_budget` still applies, counting requests. The cost figures in the
+debug log (`--debug`) are the CLI's own estimates, not a bill.
+
+### Isolation
+
+Run as is, the CLI loads your whole Claude Code setup. Here that must not
+happen: your user settings have hooks (Stop, Notification, plugin
+SessionStart) that would nudge her on every call, which would trigger another
+call, and so on. Each call therefore runs with:
+
+- `setting_sources=[]`: no user, project or local `settings.json`, so no
+  hooks and no permission rules from them;
+- `CLAUDE_CONFIG_DIR` pointing at the empty directory
+  `~/.local/share/crepe/agent-config` (mode 0700; `$XDG_DATA_HOME` is honoured):
+  no `~/.claude` (no `CLAUDE.md`, plugins, skills, agents, commands), and
+  the CLI's own `.claude.json` lives there instead of `~/.claude.json`.
+  `HOME` is also set to an empty `agent-home` directory next to it;
+- `plugins=[]`, no agents, `disable-slash-commands` (no skills, not even the
+  CLI's own), `CLAUDE_CODE_DISABLE_CLAUDE_MDS` and
+  `CLAUDE_CODE_DISABLE_AUTO_MEMORY` (no `CLAUDE.md` files, no auto memory);
+- `mcp_servers={}` with `strict_mcp_config`: no MCP server from
+  `~/.claude.json`, a project or a plugin;
+- `tools=[]`: the model has no tool at all (`allowed_tools` would only
+  pre-approve some), `max_turns=1`, `permission_mode="dontAsk"` (nothing can
+  ever prompt);
+- `system_prompt` is the persona string alone, which replaces the CLI's own
+  prompt; the working directory is the empty `agent-cwd` (mode 0700), never a
+  repo; the prompt is sent `verbatim_prompts` so that an `@path` or a
+  `/command` inside a window title is not expanded;
+- an environment of its own. The SDK merges its environment over the
+  daemon's, so the CLI is started through a small script
+  (`~/.local/share/crepe/agent-launcher`, rewritten when needed) that runs it
+  with `env -i` and only lets through `PATH`, locale, `TZ`, proxy and CA
+  variables, plus the ones set explicitly: `CLAUDE_CODE_OAUTH_TOKEN`,
+  `CLAUDE_CONFIG_DIR`, `HOME` and the switches below. An `ANTHROPIC_API_KEY`,
+  `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` or cloud-provider variable in
+  the daemon's environment never reaches the CLI;
+- `DISABLE_AUTOUPDATER`, `DISABLE_TELEMETRY`, `DISABLE_ERROR_REPORTING` and
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` set to `1`;
+- no session transcript (`no-session-persistence`, and
+  `CLAUDE_CODE_SKIP_PROMPT_HISTORY`). Anything else the CLI keeps stays in
+  `agent-config`.
+
+On top of that, the init message of every call is checked: if the CLI reports
+a tool, an MCP server, a skill or a plugin other than its built-in ones, the
+call is dropped with an `Upstream` error and the journal says what was loaded.
+
+Each call starts a CLI process (about 0.4 s to its first message) and is cut
+off after 60 s (`AGENT_TIMEOUT_S` in `crepe_daemon/agent_sdk.py`). The request
+contains what the Privacy section lists; the CLI also adds its own request
+metadata, which the daemon does not control.
+
+To go back: set `backend = "api"` (or remove the line) and restart the unit.
+The token can stay in the keyring or be removed with `--forget-token claude`.
+
 ## Configuration
 
 Optional, in `~/.config/crepe/daemon.toml` (`$XDG_CONFIG_HOME` is honoured,
@@ -53,7 +151,8 @@ Optional, in `~/.config/crepe/daemon.toml` (`$XDG_CONFIG_HOME` is honoured,
 
 | Key | Default | |
 |---|---|---|
-| `model` | `"claude-haiku-5-5"` | Model used |
+| `backend` | `"api"` | `"api"` (Messages API, API key) or `"abonnement"` (see [Backend abonnement](#backend-abonnement)) |
+| `model` | `"claude-haiku-5-5"` | Model used, by both backends |
 | `daily_budget` | `200` | API requests per local day, `Ask` and `Remark` together; `0` disables the API |
 | `remarks` | `false` | Allow `Remark` to call the API |
 | `max_reply_chars` | `160` | Hard cap on a reply |
@@ -64,7 +163,7 @@ message in the journal. Restart the unit after editing it.
 ## Guetteurs
 
 Optional watchers that poll your forge, your tracker, your local repos,
-this machine and a published calendar, and nudge her (method `Nudge` of the
+this machine, a published calendar and Spotify, and nudge her (method `Nudge` of the
 extension, see [PROTOCOL.md](PROTOCOL.md#watchers)) when something happens. Each one runs only when its section exists in
 `daemon.toml`; see [daemon.example.toml](daemon.example.toml).
 
@@ -75,6 +174,7 @@ extension, see [PROTOCOL.md](PROTOCOL.md#watchers)) when something happens. Each
 | `[watchers.git]` | `git status` and commits ahead of the upstream in local repos | `interval_minutes`, default 30 | `travail_non_commite` `<repo> · <n> fichiers · <h> h` or `<repo> · <n> commits pas poussés`, once per repo per `nag_after_minutes`, two per look at most |
 | `[watchers.machine]` | Disk usage, battery, load average | `interval_minutes`, default 5 | `machine` `disque <mount> <pct> %`, `batterie <pct> %`, `machine à genoux depuis <n> min` |
 | `[watchers.ics]` | A published calendar link (ICS) | `interval_minutes`, default 15 | `agenda` `<summary> dans <n> min`, or `<summary> aujourd'hui` for an all-day event at the first look after 07:00; two per look at most |
+| `[watchers.spotify]` | What you are playing, from Spotify's Web API | `interval_seconds`, default 30 (`idle_interval_seconds`, default 120, after 10 min of silence) | `musique` `<title> — <artists>` on each new track, `musique_fin` `<n> min` when playback stops after 20 min or more of listening |
 
 Keys of `[watchers.gitlab]`: `url` (required, e.g. `https://gitlab.example.com`),
 `interval_minutes`, `projects` (list of paths with namespace, e.g.
@@ -84,7 +184,8 @@ failed pipelines). `[watchers.redmine]`: `url` (required) and
 
 `[watchers.git]`: `paths` (required; each one a repo, or a folder whose
 direct children are repos, 50 repos at most, `~` allowed),
-`interval_minutes`, `nag_after_minutes` (default 120). A repo nags when it
+`interval_minutes`, `nag_after_minutes` (default 120), `unpushed`
+(default true; false leaves commits waiting for a push alone). A repo nags when it
 has uncommitted changes (staged, unstaged or untracked, `.gitignore`
 honoured) and they are older than `nag_after_minutes`: the age is the oldest
 mtime of the modified tracked files, or the time the watcher first saw the
@@ -111,6 +212,14 @@ writes) and floating times, all-day events, cancelled events (skipped),
 `COUNT`, `UNTIL`, `BYDAY`); any other repeat rule (monthly, yearly...)
 counts only its first instance.
 
+`[watchers.spotify]`: `client_id` (required), `redirect_port` (default 8898),
+`interval_seconds` (default 30, minimum 15), `idle_interval_seconds` (default
+120). See [Spotify](#spotify) below for the one-time setup. Only tracks
+count: an ad is skipped without ending the listening session, a podcast
+episode gives no nudge and counts as a stop. The track playing when the
+daemon starts is not announced. A 429 is waited out for the `Retry-After` it
+gives (an hour for a quota error) without counting as a failure.
+
 The first look waits 30 s after start, so login stays quiet, and the very
 first look ever only records what exists: no nudge for old failures or
 issues, only the Redmine count. The git, machine and ICS watchers report a
@@ -120,7 +229,7 @@ to one hour, and goes back to normal at the next success. The journal says
 why it failed.
 
 Tokens, in the keyring like the API key (attribute `purpose = gitlab-token`
-or `redmine-key`):
+`redmine-key` or `spotify-refresh-token`):
 
 ```sh
 ../daemon-venv/bin/python -m crepe_daemon --set-token gitlab     # personal access token, scope read_api
@@ -128,12 +237,66 @@ or `redmine-key`):
 ../daemon-venv/bin/python -m crepe_daemon --forget-token gitlab
 ```
 
-The git, machine and ICS watchers need no token. A GitLab or Redmine
+The git, machine and ICS watchers need no token; Spotify has its own
+login (below). A GitLab or Redmine
 watcher without its token logs it once and stays idle; it checks the
 keyring again at every look, so no restart is needed after `--set-token`.
 `CREPE_GITLAB_TOKEN` and `CREPE_REDMINE_KEY`, when set and non-empty, win
 over the keyring (meant for tests). `--status` lists the configured watchers
 and whether the extension answers.
+
+### Spotify
+
+Spotify needs a small app of your own, once. The app stays in "development
+mode", which is enough as long as the account that owns it has Premium, and
+you are its only user.
+
+1. Go to <https://developer.spotify.com/dashboard> and log in with your
+   Spotify account (accept the developer terms the first time).
+2. "Create app". Fill in:
+   - App name: `Crêpe` (anything);
+   - App description: `Desktop companion that comments on what I listen to`
+     (anything);
+   - Redirect URI: `http://127.0.0.1:8898/callback`, exactly, then "Add".
+     It must be an IP literal: `localhost` is refused. If you change
+     `redirect_port`, change the port here too;
+   - Which API/SDKs are you planning to use: tick "Web API";
+   - accept the terms and "Save".
+3. Open the app, "Settings": copy the "Client ID" (there is no secret to
+   use).
+4. In `daemon.toml`:
+
+   ```toml
+   [watchers.spotify]
+   client_id = "the Client ID you copied"
+   ```
+
+5. Restart the daemon (`systemctl --user restart crepe-daemon`), then in a
+   terminal:
+
+   ```sh
+   cd ~/.local/share/crepe/daemon
+   ../daemon-venv/bin/python -m crepe_daemon --login spotify
+   ```
+
+   It prints an address and tries to open it in your browser. Log in to
+   Spotify if asked and accept; the page then says "C'est bon, tu peux
+   fermer cet onglet." and the terminal confirms. You have 5 minutes. The
+   login listens on `127.0.0.1:8898` only, for that one answer.
+
+The login uses the Authorization Code flow with PKCE (no client secret) and
+asks for the scopes `user-read-currently-playing` and
+`user-read-playback-state`. The refresh token goes to the keyring
+(`purpose = spotify-refresh-token`); access tokens live in memory only and
+Spotify's rotated refresh tokens are stored as they arrive. If Spotify
+answers the token request with an error, the terminal shows its message as
+is. `--forget-token spotify` removes the token.
+
+If the token is ever refused for good (`invalid_grant`: access revoked in
+your Spotify account, or the password changed), the journal says to run
+`--login spotify` again and the watcher stops looking until the daemon is
+restarted. `CREPE_SPOTIFY_REFRESH_TOKEN`, when set, wins over the keyring
+(meant for tests).
 
 Privacy: the watchers call only these endpoints, with your token in a header
 (`PRIVATE-TOKEN` for GitLab, `X-Redmine-API-Key` for Redmine), and never
@@ -144,6 +307,12 @@ follow a redirect (it would replay the token elsewhere):
   (or `GET /api/v4/projects/<path>` once per configured project), and
   `GET /api/v4/projects/<id>/pipelines?status=failed&updated_after=…&username=…&per_page=20`;
 - Redmine: `GET /issues.json?assigned_to_id=me&status_id=open&limit=100&sort=updated_on:desc`;
+- Spotify: `GET https://api.spotify.com/v1/me/player/currently-playing` with
+  the access token in the `Authorization` header, and `POST
+  https://accounts.spotify.com/api/token` to renew it (the login also uses
+  `https://accounts.spotify.com/authorize` in your browser). Nothing is
+  written back to Spotify, and nothing about what you play is stored: the
+  current track id and the listening start live in memory only;
 - ICS: `GET` of the configured link, nothing else. The link usually holds
   its own secret, so it is never logged: errors and the journal name its
   host only. Keep `daemon.toml` private (`chmod 600`).
@@ -218,6 +387,9 @@ gdbus call --session --dest io.github.aceep.Crepe.Brain \
 
 ## Cost
 
+(With `backend = "abonnement"` nothing is billed per request: see
+[Backend abonnement](#backend-abonnement) for the usage limits.)
+
 Claude Haiku 5.5 costs 0.10 $ per million input tokens and 0.50 $ per million
 output tokens (prompts up to 100K tokens). A request is roughly 1,500 to
 3,000 input tokens (persona plus up to 20 short exchanges) and a few dozen
@@ -232,8 +404,10 @@ python3 -m unittest discover -s daemon/tests -t daemon
 ```
 
 Standard library only; the API backend is not exercised (the tests use
-scripted and fake backends), and the watchers run against a fake HTTP
+scripted and fake backends), and the subscription backend runs against a
+fake `claude_agent_sdk` module (plus a stand-in CLI for the launcher script), and the watchers run against a fake HTTP
 transport, a fake git, fake `/sys` and `/proc` files in a temporary
 directory and an injected clock, so no test touches the network or the
-keyring. One test runs the real `git status` on a scratch repo in the
+keyring. The Spotify tests also run the `--login` flow against a local fake
+token server on the loopback interface, with a simulated browser. One test runs the real `git status` on a scratch repo in the
 temporary directory, and is skipped when git is missing.
