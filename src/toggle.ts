@@ -6,9 +6,9 @@ import {QuickToggle, SystemIndicator} from 'resource:///org/gnome/shell/ui/quick
 
 const CrepeQuickToggle = GObject.registerClass(
     class CrepeQuickToggle extends QuickToggle {
-        constructor() {
+        constructor(title: string) {
             super({
-                title: 'Crêpe',
+                title,
                 toggleMode: true,
             });
         }
@@ -24,8 +24,8 @@ export class CrepeToggle {
     private readonly indicator: InstanceType<typeof SystemIndicator>;
     private readonly toggle: InstanceType<typeof CrepeQuickToggle>;
 
-    constructor(icon: Gio.Icon, settings: Gio.Settings) {
-        this.toggle = new CrepeQuickToggle();
+    constructor(icon: Gio.Icon, settings: Gio.Settings, title: string) {
+        this.toggle = new CrepeQuickToggle(title);
         this.toggle.gicon = icon;
         settings.bind('visible', this.toggle, 'checked', Gio.SettingsBindFlags.DEFAULT);
 

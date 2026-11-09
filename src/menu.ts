@@ -56,7 +56,8 @@ export class CrepeMenu {
     private readonly remindersItem: PopupMenu.PopupSubMenuMenuItem;
     private readonly settingsHandlerIds: number[];
 
-    constructor(sourceActor: Clutter.Actor, settings: CrepeSettings, actions: CrepeMenuActions) {
+    /** `name` is what the pack calls her, for the entry that hides her. */
+    constructor(sourceActor: Clutter.Actor, settings: CrepeSettings, actions: CrepeMenuActions, name: string) {
         this.settings = settings;
         this.actions = actions;
 
@@ -127,7 +128,7 @@ export class CrepeMenu {
         this.awayItem.connect('activate', () => this.actions.toggleHidden());
         this.menu.addMenuItem(this.awayItem);
 
-        const hideItem = new PopupMenu.PopupMenuItem('Masquer Crêpe');
+        const hideItem = new PopupMenu.PopupMenuItem(`Masquer ${name}`);
         hideItem.connect('activate', () => {
             this.settings.visible = false;
         });

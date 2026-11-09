@@ -1,6 +1,6 @@
 import type Gio from 'gi://Gio';
 
-import {crepify, shouldCrepify} from './crepespeak.js';
+import {CREPE_WORD, crepify, shouldCrepify} from './crepespeak.js';
 import type {CrepeSettings} from './settings.js';
 
 const SECOND = 1000;
@@ -257,6 +257,8 @@ export class Voice {
     /** In [0, 1); injectable so tests can pin every draw. */
     private readonly random: () => number;
     private lines = new Map<VoiceEvent, readonly string[]>();
+    /** What every word becomes in her own language: Crêpe says "crêpe", another pack's character its own word. */
+    private word = CREPE_WORD;
     private readonly lastLine = new Map<VoiceEvent, string>();
     private lastSpokenAt = 0;
     private lastContextAt = 0;
@@ -269,15 +271,33 @@ export class Voice {
         this.random = random;
     }
 
-    loadLines(assetsDir: Gio.File): void {
-        const file = assetsDir.get_child('repliques.json');
-        const [, contents] = file.load_contents(null);
-        const raw = JSON.parse(decoder.decode(contents)) as Record<string, unknown>;
-
+    /**
+     * Her lines: Crêpe's own from `repliques.json`, or, for another pack,
+     * the generic ones of `repliques_generiques.json` (no octopus in them)
+     * with the pack's own `repliques.json`, when it has one, taking over
+     * event by event. Every event must be there in the base file; the
+     * pack's file may name only some, and anything else in it is ignored.
+     */
+    loadLines(assetsDir: Gio.File, pack: LinePack = {}): void {
+        const base = readLines(assetsDir.get_child(pack.generic ? 'repliques_generiques.json' : 'repliques.json'));
         const lines = new Map<VoiceEvent, readonly string[]>();
         for (const event of VOICE_EVENTS)
-            lines.set(event, validLines(event, raw[event]));
+            lines.set(event, validLines(event, base[event]));
+
+        const overrides = pack.overrides?.get_child('repliques.json');
+        if (overrides && overrides.query_exists(null)) {
+            const own = readLines(overrides);
+            for (const event of VOICE_EVENTS) {
+                if (own[event] !== undefined)
+                    lines.set(event, validLines(event, own[event]));
+            }
+        }
         this.lines = lines;
+    }
+
+    /** The word she says instead of every other, in her own language. */
+    setWord(word: string): void {
+        this.word = word;
     }
 
     /** Whether an idle remark would be let through right now: talking allowed and the cooldown over. */
@@ -443,7 +463,7 @@ export class Voice {
         // A line opening on a placeholder gave that value a capital: it is kept as it now reads.
         const opening = filledValues[0];
         const keep = line.startsWith('{') && opening !== undefined ? [capitalised(opening), ...filledValues] : filledValues;
-        return {text: crepify(sentence, keep, this.random), translation: sentence};
+        return {text: crepify(sentence, keep, this.random, this.word), translation: sentence};
     }
 }
 
@@ -492,6 +512,17 @@ function namesBetweenBraces(line: string): string[] {
 
 function isPlaceholder(name: string): name is Placeholder {
     return (PLACEHOLDERS as readonly string[]).includes(name);
+}
+
+/** Where a pack's lines come from: the generic base instead of Crêpe's, and a folder whose `repliques.json` takes over. */
+export interface LinePack {
+    readonly generic?: boolean;
+    readonly overrides?: Gio.File;
+}
+
+function readLines(file: Gio.File): Record<string, unknown> {
+    const [, contents] = file.load_contents(null);
+    return JSON.parse(decoder.decode(contents)) as Record<string, unknown>;
 }
 
 function validLines(event: VoiceEvent, value: unknown): readonly string[] {

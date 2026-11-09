@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {crepify, shouldCrepify} from '../src/crepespeak.js';
+import {crepify, drawOut, shouldCrepify} from '../src/crepespeak.js';
 
 /** Never under the one-in-three odds: no word is drawn out. */
 const PLAIN = (): number => 0.99;
@@ -93,5 +93,19 @@ describe('shouldCrepify', () => {
 
     it('says a line in clear when the draw falls at or over the share', () => {
         assert.equal(shouldCrepify(70, () => 0.7), false);
+    });
+});
+
+describe('crepify with another word', () => {
+    it('says the pack\'s word instead, with the same capitals', () => {
+        assert.equal(crepify('Je bosse, là.', [], PLAIN, 'poireau'), 'Poireau poireau, poireau.');
+        assert.equal(crepify('NON !', [], PLAIN, 'poireau'), 'POIREAU !');
+    });
+
+    it('draws the first vowel out', () => {
+        assert.equal(drawOut('crêpe'), 'crêêêpe');
+        assert.equal(drawOut('poireau'), 'poooireau');
+        assert.equal(drawOut('brrr'), 'brrr');
+        assert.equal(crepify('Ah non !', [], DRAWN_OUT, 'poireau'), 'Poooireau poooireau !');
     });
 });

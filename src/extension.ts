@@ -175,7 +175,7 @@ export default class CrepeExtension extends Extension {
         const assetsDir = pack.dir;
         const outfitCatalog = loadPackOutfits(pack);
         const voice = new Voice(settings, () => this.bubble?.isShowing === true);
-        voice.loadLines(builtinAssets);
+        loadPackLines(voice, pack, builtinAssets);
 
         // The shell never calls disable() after a failed enable(): whatever was built is torn down here,
         // or an invisible actor would swallow clicks until logout. Each piece is kept on `this` as soon
@@ -284,7 +284,7 @@ export default class CrepeExtension extends Extension {
                 addReminder: input => this.addReminderFromMenu(input),
                 pendingReminders: () => this.pendingReminderLabels(),
                 cancelReminder: id => this.reminders?.cancel(id),
-            });
+            }, pack.manifest.name);
             this.menu = menu;
             this.drag = new DragHandler(hitbox.actor, sprite.actor, {
                 onClick: () => {
@@ -321,7 +321,7 @@ export default class CrepeExtension extends Extension {
 
             const packIcon = assetsDir.get_child('icone.png');
             const iconFile = packIcon.query_exists(null) ? packIcon : builtinAssets.get_child('reference').get_child('1_sud_face.png');
-            this.toggle = new CrepeToggle(Gio.FileIcon.new(iconFile), settings.gsettings);
+            this.toggle = new CrepeToggle(Gio.FileIcon.new(iconFile), settings.gsettings, pack.manifest.name);
 
             // Banners off: the tray still gets every notification, she just stops talking about them.
             this.bannersHandlerId = desktopNotifications.connect('changed::show-banners', () =>
@@ -1540,5 +1540,24 @@ function loadPackOutfits(pack: LoadedPack): OutfitCatalog {
             throw error;
         console.warn(`Crêpe: pack "${pack.id}" outfits not used: ${error instanceof Error ? error.message : String(error)}`);
         return new OutfitCatalog(new Map());
+    }
+}
+
+/**
+ * Her lines for the pack: Crêpe's own, or the generic ones with the pack's
+ * additions. A user pack whose lines are wrong gets the generic ones
+ * alone rather than keeping her off the screen.
+ */
+function loadPackLines(voice: Voice, pack: LoadedPack, builtinAssets: Gio.File): void {
+    voice.setWord(pack.manifest.word);
+    if (pack.builtIn) {
+        voice.loadLines(builtinAssets);
+        return;
+    }
+    try {
+        voice.loadLines(builtinAssets, {generic: true, overrides: pack.dir});
+    } catch (error) {
+        console.warn(`Crêpe: pack "${pack.id}" lines not used: ${error instanceof Error ? error.message : String(error)}`);
+        voice.loadLines(builtinAssets, {generic: true});
     }
 }
