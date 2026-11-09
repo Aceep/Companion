@@ -15,7 +15,18 @@ export SHELL_DEBUG=all
 exec dbus-run-session -- bash -c '
     gnome-shell --nested --wayland --no-x11 &
     shell_pid=$!
-    sleep 4
+    # Enabling too early makes D-Bus activate a stand-in for
+    # org.gnome.Shell.Extensions and the extension stays INITIALIZED, so
+    # wait until the nested shell owns that name itself: it claims
+    # org.gnome.Shell at once but exports the extension system only once it
+    # is up. NameHasOwner never activates anything, unlike calling the name.
+    for _ in $(seq 1 120); do
+        kill -0 "$shell_pid" 2>/dev/null || break
+        gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
+            --method org.freedesktop.DBus.NameHasOwner org.gnome.Shell.Extensions 2>/dev/null \
+            | grep -q true && break
+        sleep 0.5
+    done
     gnome-extensions enable "$1" || echo "could not enable $1 (is the nested shell up?)" >&2
     wait "$shell_pid"
 ' _ "$UUID"
