@@ -130,6 +130,19 @@ gnome-extensions prefs crepe@aceep.github.io
   The pointer is polled every 150 ms, only while the setting is on and
   she is shown; mid-gesture, asleep, carried or crawling she does not
   look around.
+- A pointer left alone for two minutes while you are still at the
+  keyboard (idle for less than a minute) is a toy. Calm, awake, at her
+  spot or on a visit, not focusing, not in a meeting, not hushed, and
+  with the pointer at least 150 pixels from her, she stares at it, then
+  three seconds later creeps up on it along her row, stopping 30 pixels
+  short of it, or right under or over it when it is well above or below
+  her. If it moves more than 20 pixels on the way she stops, looks away
+  and crawls back to where she started, without a word. If it stays put
+  she stays by it, eyes on it, and one time in two says something
+  (`souris`). That is not her spot: her next stroll takes her back
+  there, and so does focus kept in her room for three minutes, as after
+  a visit. Once every 15 minutes at most. It rides on the eyes'
+  polling, so with "Suit la souris des yeux" off there is no game.
 - Above the windows she can sit right over the one you work in. When
   the focused window comes under her (more than a quarter of her frame
   over it, once it has stopped moving for 400 ms), she crawls along her
@@ -530,7 +543,7 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/sprite.ts` | Clutter actor showing the current frame, nearest-neighbour upscaling, mirrored frames, layers over and under it, where her head is in each frame |
 | `src/outfit.ts` | Loads `assets/tenues.json`, and the outfit layers on the sprite shown per animation and moved with her head |
 | `src/wardrobe.ts` | Which outfits she wears for a date and her state, and which still owe their line of the day. No GNOME dependency, shared with the preferences |
-| `src/gaze.ts` | Which way her eyes look, the eye poses' names, and the pointer polling that turns them |
+| `src/gaze.ts` | Which way her eyes look, the eye poses' names, and the pointer polling that turns them and tells the pointer game |
 | `src/dodge.ts` | Moving out of the focused window's way and back, overlap and free-spot maths |
 | `src/layer.ts` | Puts her on the stage above the windows (top chrome) or below them (window group), kept there across restacks |
 | `src/hitbox.ts` | Invisible actor over her body that takes clicks, kept on the sprite |
@@ -538,8 +551,8 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/monitors.ts` | The monitors as rooms of one home: which room a point is in, which edges touch and which are walls, where a room is from the primary, crawl routes and stroll destinations. No GNOME dependency |
 | `src/geometry.ts` | The point and rectangle shapes the pure modules share |
 | `src/presence.ts` | Where she is when not at her spot: hiding off-screen, storming off, perched on the focused window, out of its way, visiting another room. Drives the trips there and back |
-| `src/curiosity.ts` | When she goes to see the room you work in and when she comes back. No GNOME dependency |
-| `src/visits.ts` | Visits to another room: where the focus is, where she goes on arrival, and the way back |
+| `src/curiosity.ts` | When she goes to see the room you work in and when she comes back, and her game with a pointer left alone. No GNOME dependency |
+| `src/visits.ts` | Visits to another room and to the pointer: where the focus and the pointer are, where she goes, and the way back |
 | `src/drag.ts` | Click versus drag on the hitbox, pointer grab while she is carried |
 | `src/menu.ts` | Right-click menu: preferences, focus session, crawl and talk switches, off-screen and hide entries, temporary mute offer, conversation entries |
 | `src/behaviour.ts` | Blinks, rare fidgets, crawling, sleep on idle and at bedtime, wave on return, reactions, impatient tapping, hush, pestering, break reminder, focus sessions, trips she is sent on, events worth a line |

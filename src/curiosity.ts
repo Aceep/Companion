@@ -1,3 +1,5 @@
+import type {Point} from './geometry.js';
+
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 
@@ -70,5 +72,97 @@ export class Curiosity {
     /** She stopped looking (hidden, disabled): wherever the focus is, it is new to her next time. */
     reset(): void {
         this.tracking = false;
+    }
+}
+
+/** The pointer left alone this long, with someone still at the keyboard, and it is a toy. */
+export const STILL_FOR = 2 * MINUTE;
+/** She stares at it this long before creeping up on it. */
+export const STARE_FOR = 3 * SECOND;
+/** Playing more often than this would be a habit, not a whim. */
+export const PLAY_EVERY = 15 * MINUTE;
+/** Stage pixels from her frame: closer than this, there is nothing to creep up on. */
+export const PLAY_FROM = 150;
+/** Stage pixels the pointer may twitch by before it counts as moving. */
+export const TWITCH = 20;
+
+/** What keeps her from playing with the pointer, or stops a game under way. */
+export type PlayBlocker = 'absent' | 'asleep' | 'elsewhere' | 'annoyed' | 'focus' | 'meeting' | 'hushed' | 'carried' | 'busy';
+
+export interface PlayInput {
+    now: number;
+    pointer: Point;
+    /** When the pointer last moved at all. */
+    stillSince: number;
+    /** Stage pixels from the pointer to her frame. */
+    distance: number;
+    blockers: readonly PlayBlocker[];
+}
+
+/** `stare`: eyes on it. `approach`: creep up on it. `recoil`: it moved while she crept, she backs off. */
+export type PlayStep = 'stare' | 'approach' | 'recoil' | 'none';
+
+/** Idle, eyes on the pointer, creeping up on it, or arrived next to it. */
+export type PlayPhase = 'idle' | 'staring' | 'approaching' | 'arrived';
+
+/**
+ * Whether she plays with a pointer left alone while you type: she
+ * stares, creeps up on it, and backs off if it moves. Fed at each look
+ * at the pointer; keeps no timer of its own.
+ */
+export class PointerPlay {
+    private current: PlayPhase = 'idle';
+    /** Where the pointer was when she started staring: moving off it by more than a twitch ends the game. */
+    private anchor: Point = {x: 0, y: 0};
+    private staringSince = 0;
+    private lastPlayAt = Number.NEGATIVE_INFINITY;
+
+    get phase(): PlayPhase {
+        return this.current;
+    }
+
+    update(input: PlayInput): PlayStep {
+        if (this.current === 'idle')
+            return this.maybeStare(input);
+        if (input.blockers.length > 0) {
+            this.current = 'idle';
+            return 'none';
+        }
+        const moved = Math.hypot(input.pointer.x - this.anchor.x, input.pointer.y - this.anchor.y) > TWITCH;
+        if (moved) {
+            const creeping = this.current === 'approaching';
+            this.current = 'idle';
+            return creeping ? 'recoil' : 'none';
+        }
+        if (this.current === 'staring' && input.now - this.staringSince >= STARE_FOR) {
+            this.current = 'approaching';
+            return 'approach';
+        }
+        return 'none';
+    }
+
+    /** She got there with the pointer still in place. False when the game was over before she arrived. */
+    arrived(): boolean {
+        if (this.current !== 'approaching')
+            return false;
+        this.current = 'arrived';
+        return true;
+    }
+
+    /** The game is off, whatever it was at: she could not set off, or she stopped looking. */
+    cancel(): void {
+        this.current = 'idle';
+    }
+
+    private maybeStare(input: PlayInput): PlayStep {
+        const {now} = input;
+        if (now - input.stillSince < STILL_FOR || input.distance < PLAY_FROM || input.blockers.length > 0 ||
+            now - this.lastPlayAt < PLAY_EVERY)
+            return 'none';
+        this.current = 'staring';
+        this.anchor = input.pointer;
+        this.staringSince = now;
+        this.lastPlayAt = now;
+        return 'stare';
     }
 }

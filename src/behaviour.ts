@@ -108,6 +108,9 @@ export type TappingListener = () => void;
  */
 export type InkHandler = (reason: 'storm' | 'sulk') => boolean;
 
+/** Asked before each stroll of hers: true when it took her somewhere else instead, home from a whim. */
+export type StrollOverride = () => boolean;
+
 /** Where an idle remark may come from instead of the written lines: the conversation daemon. */
 export interface RemarkSource {
     /** Null when it is not there to ask, or not allowed to; resolves to "" when it has nothing to say, and she says nothing. */
@@ -149,6 +152,7 @@ export class IdleBehaviour implements GazeHolder {
     private countStat: StatsListener = () => {};
     private tappingStopped: TappingListener = () => {};
     private inkHandler: InkHandler = () => false;
+    private strollOverride: StrollOverride = () => false;
     /** She has already spat ink in this sulk: once is a gesture, twice is a habit. */
     private inkedThisSulk = false;
     /** Writable so a test can bring her back sooner. */
@@ -286,7 +290,12 @@ export class IdleBehaviour implements GazeHolder {
 
     /** Someone is at the desk: the idle time is short of what puts her to sleep. */
     get isUserActive(): boolean {
-        return this.idleMonitor.get_idletime() < this.settings.sleepAfterMs;
+        return this.idleTimeMs < this.settings.sleepAfterMs;
+    }
+
+    /** Since the last key, click or pointer move, whichever came last. */
+    get idleTimeMs(): number {
+        return this.idleMonitor.get_idletime();
     }
 
     /** Bat in hand, or off the screen in a fury. */
@@ -347,6 +356,10 @@ export class IdleBehaviour implements GazeHolder {
 
     setInkHandler(handler: InkHandler): void {
         this.inkHandler = handler;
+    }
+
+    setStrollOverride(override: StrollOverride): void {
+        this.strollOverride = override;
     }
 
     /** A reminder of hers went unanswered: one more point of annoyance, short of a sulk. */
@@ -536,6 +549,19 @@ export class IdleBehaviour implements GazeHolder {
                 this.resumeRoutine();
             onArrived();
         });
+        return true;
+    }
+
+    /**
+     * The trip under way is called off where she is, and she looks away
+     * from the pointer, then `onDone`: what she was creeping up on moved.
+     * False off a trip; cut short meanwhile, `onDone` never comes.
+     */
+    flinch(onDone: () => void): boolean {
+        if (!this.running || !this.errand)
+            return false;
+        this.stopCrawl();
+        this.lookAway(onDone);
         return true;
     }
 
@@ -741,11 +767,11 @@ export class IdleBehaviour implements GazeHolder {
     }
 
     /** The opposite of a fidget's glance: she turns her eyes away from whoever keeps clicking. */
-    private lookAway(): void {
+    private lookAway(onDone: () => void = () => {}): void {
         if (this.crawling)
             return;
         const [pointerX] = global.get_pointer();
-        this.playGesture(pointerX < this.spriteCenterX() ? 'regard_droite' : 'regard_gauche');
+        this.playGesture(pointerX < this.spriteCenterX() ? 'regard_droite' : 'regard_gauche', onDone);
     }
 
     /**
@@ -1046,6 +1072,9 @@ export class IdleBehaviour implements GazeHolder {
     }
 
     private crawl(): void {
+        // Away from her spot on a whim, the stroll is her way back to it.
+        if (this.isResting(this.player.currentName) && this.strollOverride())
+            return;
         const destination = this.positioner.pickDestination();
         if (destination === null || !this.isResting(this.player.currentName)) {
             this.scheduleCrawl();

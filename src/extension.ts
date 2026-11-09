@@ -42,7 +42,7 @@ import {TimerPool} from './timers.js';
 import {TrackGate} from './tracks.js';
 import {CrepeToggle} from './toggle.js';
 import {ErrorHistory, LongTasks, NotificationTally, errorKey} from './trackers.js';
-import {Visits} from './visits.js';
+import {PointerGame, Visits} from './visits.js';
 import {Voice, inClear, type TriggerEvent, type Utterance} from './voice.js';
 import {OUTFIT_LINES, activeOutfits, outfitsOwingALine, parseLineDays, type OutfitId} from './wardrobe.js';
 import {FocusedWindowWatcher, NewWindowWatcher, NotificationWatcher} from './watchers.js';
@@ -229,16 +229,20 @@ export default class CrepeExtension extends Extension {
             behaviour.setInkHandler(reason => this.throwInk(reason));
             const presence = new Presence(sprite, hitbox, positioner, behaviour, settings);
             this.presence = presence;
-            this.eyes = new EyesFollower(behaviour, timers, {
+            const body = () => ({x: hitbox.actor.x, y: hitbox.actor.y, width: hitbox.actor.width, height: hitbox.actor.height});
+            const eyes = new EyesFollower(behaviour, timers, {
                 eyes: () => ({
                     x: sprite.actor.x + sprite.size / 2,
                     y: sprite.actor.y + (HEAD_PADDING + EYES_BELOW_HEAD) * sprite.currentScale,
                 }),
-                body: () => ({x: hitbox.actor.x, y: hitbox.actor.y, width: hitbox.actor.width, height: hitbox.actor.height}),
+                body,
             });
+            this.eyes = eyes;
             this.dodger = new Dodger(sprite, presence, behaviour, positioner, timers, () => behaviour.remark('esquive'));
-            this.visits = new Visits(sprite, presence, behaviour, positioner, this.eyes, timers,
-                () => this.meetingState.silent || this.meetingState.hidden);
+            const inMeeting = () => this.meetingState.silent || this.meetingState.hidden;
+            this.visits = new Visits(sprite, presence, behaviour, positioner, eyes, timers, inMeeting);
+            // Fed by the eyes' polling and dropped with them: nothing of its own to tear down.
+            eyes.setWatcher(new PointerGame(sprite, presence, behaviour, positioner, eyes, body, inMeeting));
             behaviour.setStormHandler({
                 leave: () => {
                     // The menu and the box follow her; she is not taking questions on the way out.

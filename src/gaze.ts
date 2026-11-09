@@ -65,12 +65,21 @@ export interface GazeTarget {
     body: () => Rect;
 }
 
+/** Told at each look at the pointer, for whoever plays with it: no second poll for it. */
+export interface PointerWatcher {
+    /** `stillSince` is when the pointer last moved at all. */
+    polled(pointer: {x: number; y: number}, stillSince: number, now: number): void;
+    /** The polling stopped: nothing more comes until it starts again. */
+    stopped(): void;
+}
+
 /**
  * Her eyes follow the pointer while she rests: polled, since a shell actor
  * sees no motion over other windows. Close to her, or left alone for a few
  * seconds, the pointer gets a straight look. Not running at all unless
  * started, so turning it off costs nothing. Something she was shown
- * (`lookAt()`) holds her eyes for a while, polling or not.
+ * (`lookAt()`) holds her eyes for a while, polling or not; a pointer she
+ * is after (`fixate()`) keeps them however still or close it is.
  */
 export class EyesFollower {
     private readonly holder: GazeHolder;
@@ -83,6 +92,9 @@ export class EyesFollower {
     /** Where `lookAt()` keeps her eyes until `cancelHold` runs out. */
     private heldDirection: GazeDirection | null = null;
     private cancelHold: (() => void) | null = null;
+    /** Eyes kept on the pointer, still or close: she is after it. */
+    private fixed = false;
+    private watcher: PointerWatcher | null = null;
 
     constructor(holder: GazeHolder, timers: TimerPool, target: GazeTarget) {
         this.holder = holder;
@@ -92,6 +104,15 @@ export class EyesFollower {
 
     get isFollowing(): boolean {
         return this.cancelPoll !== null;
+    }
+
+    setWatcher(watcher: PointerWatcher | null): void {
+        this.watcher = watcher;
+    }
+
+    /** While set, her eyes stay on the pointer even when it is still or right next to her. */
+    fixate(fixed: boolean): void {
+        this.fixed = fixed;
     }
 
     start(): void {
@@ -106,9 +127,11 @@ export class EyesFollower {
         this.cancelHold?.();
         this.cancelHold = null;
         this.heldDirection = null;
+        this.fixed = false;
         this.lastX = Number.NaN;
         this.lastY = Number.NaN;
         this.holder.lookTowards(null);
+        this.watcher?.stopped();
     }
 
     /**
@@ -147,6 +170,8 @@ export class EyesFollower {
             this.lastY = y;
             this.movedAt = now;
         }
+        // First, so whether she is after the pointer is settled before her eyes turn.
+        this.watcher?.polled({x, y}, this.movedAt, now);
         if (!this.holder.canFollowPointer) {
             this.holder.lookTowards(null);
             return;
@@ -155,7 +180,7 @@ export class EyesFollower {
             this.holder.lookTowards(this.heldDirection);
             return;
         }
-        if (now - this.movedAt >= STILL_AFTER || this.isClose(x, y)) {
+        if (!this.fixed && (now - this.movedAt >= STILL_AFTER || this.isClose(x, y))) {
             this.holder.lookTowards(null);
             return;
         }

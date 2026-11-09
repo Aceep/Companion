@@ -653,6 +653,13 @@
     "Je viens voir. Fais comme si j'étais pas là.",
     "C'est moins bien rangé que chez moi."
   ],
+  "souris": [
+    "Il est mort ?",
+    "Je peux le prendre ?",
+    "Bouge, pour voir.",
+    "C'est à moi maintenant.",
+    "Il bouge plus. Je l'ai eu."
+  ],
   "bilan": [
     "Bilan : {notifs} notifs, {erreurs} erreurs. Journée normale, donc.",
     "Aujourd'hui : {notifs} notifs, {succes} succès. On prend.",

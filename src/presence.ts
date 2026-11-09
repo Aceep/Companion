@@ -15,7 +15,7 @@ const ERRAND_SPEED = 40;
 
 /**
  * home: at her remembered spot, or crawling back to it from a window.
- * visiting: gone to see another room, on her way there or settled in it.
+ * visiting: gone to see another room, or the pointer in hers, on her way there or settled there.
  * perched: on the focused window's title bar, or on her way there.
  * dodged: out of the focused window's way on her row, or on her way there.
  * leaving, away, returning: hiding at the edge of the screen, a sliver of her
@@ -58,6 +58,10 @@ export class Presence {
     private visitedRoom: number | null = null;
     /** Out of a window's way on a visit: where she stood, to go back to instead of home. */
     private dodgedFrom: Point | null = null;
+    /** A visit a few steps from her spot, to the pointer: her next stroll is the way back. */
+    private strollEndsVisit = false;
+    /** Creeping up on the pointer: where she set off from, and whether on a visit, for `recoil()`. */
+    private approachFrom: {spot: Point; wasVisiting: boolean} | null = null;
 
     constructor(sprite: CrepeSprite, hitbox: Hitbox, positioner: Positioner, behaviour: IdleBehaviour, settings: CrepeSettings) {
         this.sprite = sprite;
@@ -66,6 +70,7 @@ export class Presence {
         this.behaviour = behaviour;
         this.settings = settings;
         this.homeMissing = positioner.isHomeRoomMissing();
+        behaviour.setStrollOverride(() => this.strollHome());
         // The only listeners to these: with the positioner listening too, which ran first decided where she ended up.
         this.monitorsHandlerId = Main.layoutManager.connect('monitors-changed', () => this.settle());
         // A panel or a dock appearing, growing or going moves the edges she keeps inside.
@@ -353,6 +358,63 @@ export class Presence {
         return true;
     }
 
+    /**
+     * Creeps up on the pointer, to `spot` in the room she is in, from her
+     * spot or her place on a visit; `onArrived` once there. From her spot
+     * it is a visit to her own room: that is not where she lives, and her
+     * next stroll takes her back. False when she could not set off.
+     */
+    approach(spot: Point, onArrived: () => void): boolean {
+        const room = this.positioner.roomIndex;
+        if (!this.isSettled || room === null)
+            return false;
+        const from = this.positioner.position;
+        const wasVisiting = this.state === 'visiting';
+        this.positioner.detach();
+        const started = this.errand(spot.x > from.x, done => this.positioner.travelTo(spot, this.speed(), done), () => {
+            this.approachFrom = null;
+            onArrived();
+        });
+        if (!started) {
+            if (!wasVisiting)
+                this.positioner.attach();
+            return false;
+        }
+        if (!wasVisiting) {
+            this.visitedRoom = room;
+            this.strollEndsVisit = true;
+        }
+        this.state = 'visiting';
+        this.approachFrom = {spot: from, wasVisiting};
+        return true;
+    }
+
+    /**
+     * The pointer moved while she crept up on it: she stops, looks away,
+     * and crawls back to where she set off from, her spot or her place on
+     * the visit she was on.
+     */
+    recoil(): void {
+        const approach = this.approachFrom;
+        if (!approach)
+            return;
+        this.approachFrom = null;
+        // The flinch stops the trip, and with it the arrival that would have said so.
+        this.travelling = false;
+        this.behaviour.flinch(() => {
+            const backHome = () => {
+                if (approach.wasVisiting)
+                    return;
+                this.endVisitHere();
+                this.state = 'home';
+                this.positioner.attach();
+            };
+            // Asleep by then, she stays where she stopped; her next stroll or the end of the visit takes her back.
+            this.errand(approach.spot.x > this.sprite.actor.x, done =>
+                this.positioner.travelTo(approach.spot, this.speed(), done), backHome);
+        });
+    }
+
     /** She is picked up: whatever trip or perch she was on is over, and where she is dropped is her spot. */
     releaseForDrag(): void {
         const wasAway = this.isAway;
@@ -436,6 +498,13 @@ export class Presence {
     private endVisitHere(): void {
         this.visitedRoom = null;
         this.dodgedFrom = null;
+        this.strollEndsVisit = false;
+        this.approachFrom = null;
+    }
+
+    /** Next to the pointer on a whim, the stroll that comes is her way home. */
+    private strollHome(): boolean {
+        return this.strollEndsVisit && this.state === 'visiting' && !this.travelling && this.endVisit();
     }
 
     private arriveHome(onHome: () => void): void {
