@@ -11,6 +11,7 @@ from . import VERSION
 from .brain import Brain
 from .errors import ERROR_PREFIX, BrainError, UpstreamError
 from .watchers import WatcherPool
+from .watchers.base import run_in_executor
 
 log = logging.getLogger(__name__)
 
@@ -133,9 +134,8 @@ class BrainService:
             # Picks up a key stored with --set-key while running, for the next Status.
             self._run_in_worker(self._refresh_key_state, on_done=lambda _result: None)
         elif method_name == "Forget":
-            self.brain.memory.clear()
-            log.info("memory cleared")
-            invocation.return_value(None)
+            # Through the worker, so it never lands in the middle of an exchange.
+            self._answer_later(invocation, self.brain.forget)
         else:
             invocation.return_dbus_error(ERROR_PREFIX + "Invalid", f"unknown method {method_name}")
 
@@ -153,14 +153,18 @@ class BrainService:
             "watchers": GLib.Variant("as", self.watchers.names),
         }
 
-    def _answer_later(self, invocation: Gio.DBusMethodInvocation, work: Callable[[], str]) -> None:
-        def reply(result: str | BrainError) -> None:
+    def _answer_later(self, invocation: Gio.DBusMethodInvocation, work: Callable[[], str | None]) -> None:
+        """Run `work` in the worker and answer with its line, or nothing for a method without reply (`None`)."""
+
+        def reply(result: str | None | BrainError) -> None:
             if isinstance(result, BrainError):
                 invocation.return_dbus_error(result.dbus_name, str(result))
+            elif result is None:
+                invocation.return_value(None)
             else:
                 invocation.return_value(GLib.Variant("(s)", (result,)))
 
-        def guarded() -> str | BrainError:
+        def guarded() -> str | None | BrainError:
             try:
                 return work()
             except BrainError as error:
@@ -172,16 +176,8 @@ class BrainService:
         self._run_in_worker(guarded, on_done=reply)
 
     def _run_in_worker(self, work: Callable, on_done: Callable) -> None:
-        def finish(future) -> None:
-            try:
-                result = future.result()
-            except Exception:
-                # Logged here, never sent: the caller only gets a short message.
-                log.exception("request failed")
-                result = _internal_error()
-            GLib.idle_add(_call_once, on_done, result)
-
-        self._executor.submit(work).add_done_callback(finish)
+        # The stack goes to the log, never to the caller, who only gets a short message.
+        run_in_executor(self._executor, work, on_done, on_failure=lambda _error: _internal_error())
 
     def _refresh_key_state(self) -> None:
         self._has_key = self._key_lookup() is not None
@@ -189,11 +185,6 @@ class BrainService:
 
 def _internal_error() -> BrainError:
     return UpstreamError("internal error, see the daemon log")
-
-
-def _call_once(callback: Callable, result) -> bool:
-    callback(result)
-    return GLib.SOURCE_REMOVE
 
 
 def query_status() -> dict | None:

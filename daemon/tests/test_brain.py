@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest import mock
 
-from crepe_daemon.brain import FAKE_PREFIX, REFUSAL_LINES, Brain, FakeBackend, Refused, postprocess
+from crepe_daemon.brain import FAKE_PREFIX, MAX_ASK_CHARS, REFUSAL_LINES, Brain, FakeBackend, Refused, postprocess
 from crepe_daemon.config import Config
 from crepe_daemon.errors import BudgetError, InvalidError, NoKeyError
 from crepe_daemon.memory import REMARK_PROMPT, DailyCounter, Memory
@@ -87,6 +87,21 @@ class BrainTest(unittest.TestCase):
             brain.memory.messages(),
             [{"role": "user", "content": "salut"}, {"role": "assistant", "content": "Encore toi."}],
         )
+
+    def test_long_question_is_clipped_not_refused(self):
+        backend = ScriptedBackend()
+        brain = self.make_brain(backend)
+        brain.ask("mot " * 400, "")
+        sent = backend.calls[0][-1]["content"]
+        self.assertEqual(len(sent), MAX_ASK_CHARS)
+        self.assertTrue(sent.endswith("…"))
+        self.assertEqual(brain.memory.messages()[0]["content"], sent)
+
+    def test_forget_empties_the_memory(self):
+        brain = self.make_brain(ScriptedBackend())
+        brain.ask("salut", "")
+        brain.forget()
+        self.assertEqual(len(brain.memory), 0)
 
     def test_bad_context_is_invalid_before_any_call(self):
         backend = ScriptedBackend()

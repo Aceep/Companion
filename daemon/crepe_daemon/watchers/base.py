@@ -5,7 +5,7 @@ import logging
 import threading
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypeVar
 
 from gi.repository import GLib
 
@@ -19,6 +19,7 @@ FIRST_DELAY_S = 30
 FAILURES_BEFORE_BACKOFF = 3
 MAX_BACKOFF_INTERVAL_S = 3600
 
+Result = TypeVar("Result")
 Nudge = tuple[str, str]
 NudgeSender = Callable[[str, str], None]
 TokenLookup = Callable[[], str | None]
@@ -58,6 +59,32 @@ def schedule_with_glib(delay_s: float, callback: Callable[[], None]) -> None:
         return GLib.SOURCE_REMOVE
 
     GLib.timeout_add_seconds(max(1, round(delay_s)), fire)
+
+
+def run_in_executor(
+    executor: ThreadPoolExecutor,
+    work: Callable[[], Result],
+    on_done: Callable[[Result], None],
+    on_failure: Callable[[Exception], Result],
+) -> None:
+    """Run `work` on `executor`, then `on_done(result)` on the main loop.
+
+    When `work` raises, the error is logged with its stack and `on_done`
+    gets `on_failure(error)` instead. Work cancelled by an executor shutdown
+    calls nothing: the daemon is stopping, that is no failure.
+    """
+
+    def finish(future: Future) -> None:
+        try:
+            result = future.result()
+        except CancelledError:
+            return
+        except Exception as error:
+            log.exception("worker task failed")
+            result = on_failure(error)
+        GLib.idle_add(_call_once, on_done, result)
+
+    executor.submit(work).add_done_callback(finish)
 
 
 class Watcher:
@@ -194,15 +221,9 @@ class WatcherPool:
             self._executor.shutdown(wait=False, cancel_futures=True)
 
     def _run_in_worker(self, work: Callable[[], object], on_done: Callable[[object], None]) -> None:
-        def finish(future: Future) -> None:
-            try:
-                result = future.result()
-            except CancelledError:
-                return
-            GLib.idle_add(_call_once, on_done, result)
-
         assert self._executor is not None
-        self._executor.submit(work).add_done_callback(finish)
+        # A failed look comes back as its exception, which counts as a failure.
+        run_in_executor(self._executor, work, on_done, on_failure=lambda error: error)
 
 
 def _call_once(callback: Callable[[object], None], result: object) -> bool:

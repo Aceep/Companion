@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from crepe_daemon.context import Context, parse_context, render_context
+from crepe_daemon.context import MAX_CONTEXT_CHARS, Context, parse_context, render_context
 from crepe_daemon.errors import InvalidError
 
 
@@ -63,6 +63,14 @@ class ParseContextTest(unittest.TestCase):
     def test_last_lines_must_be_strings(self):
         with self.assertRaises(InvalidError):
             parse_context('{"last_lines": [1]}')
+
+    def test_oversized_context_is_invalid(self):
+        with self.assertRaisesRegex(InvalidError, "longer than"):
+            parse_context(json.dumps({"window_title": "x" * MAX_CONTEXT_CHARS}))
+
+    def test_context_at_the_size_limit_is_accepted(self):
+        raw = json.dumps({"app": ""}) + " " * (MAX_CONTEXT_CHARS - len(json.dumps({"app": ""})))
+        self.assertEqual(parse_context(raw), Context())
 
     def test_long_window_title_is_clipped(self):
         context = parse_context(json.dumps({"window_title": "x" * 1000}))

@@ -21,6 +21,9 @@ fall back to the canned lines".
 A message the user typed. `context` is a JSON string (schema below), or `""`
 for none. `reply` is one short line in her voice, never empty for a
 non-blank `text`. A blank `text` returns `""` without calling the API.
+`text` is collapsed to one line and cut to 500 characters (the last one
+becoming `…`); a longer `text` is not an error. That cut text is what the
+daemon sends and remembers.
 
 ### `Remark(s context) -> (s reply)`
 
@@ -52,7 +55,8 @@ Unknown keys may be added later; ignore them.
 ### `Forget() -> ()`
 
 Clears the conversation memory (in memory and on disk). The daily request
-count is kept.
+count is kept. It waits its turn behind the requests already queued, like
+`Ask` and `Remark`, so an exchange in flight is cleared too.
 
 ## Errors
 
@@ -64,7 +68,7 @@ never contains a stack trace.
 | `io.github.aceep.Crepe.Brain.Error.NoKey` | No API key (env or keyring), or the API rejected it |
 | `io.github.aceep.Crepe.Brain.Error.Budget` | `requests_today` reached `daily_budget` (resets at local midnight) |
 | `io.github.aceep.Crepe.Brain.Error.Upstream` | Network failure, rate limit, API error, or an internal error |
-| `io.github.aceep.Crepe.Brain.Error.Invalid` | `context` is not valid JSON, not an object, or a known field has the wrong type |
+| `io.github.aceep.Crepe.Brain.Error.Invalid` | `context` is longer than 8192 characters, not valid JSON, not an object, or a known field has the wrong type |
 
 ## Context JSON
 

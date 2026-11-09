@@ -7,7 +7,7 @@ import zlib
 from typing import Callable, Protocol
 
 from .config import Config
-from .context import Context, parse_context, render_context
+from .context import Context, clip, parse_context, render_context
 from .errors import BudgetError, NoKeyError, UpstreamError
 from .memory import REMARK_PROMPT, DailyCounter, Memory
 from .persona import system_prompt
@@ -17,6 +17,9 @@ log = logging.getLogger(__name__)
 # Room for a short reply plus whatever little thinking low effort does.
 MAX_TOKENS = 300
 REQUEST_TIMEOUT_S = 20.0
+# A chat line, not a document: longer text is cut rather than refused, so the
+# extension never meets an error it has no line for.
+MAX_ASK_CHARS = 500
 # One retry: past that the moment has passed and a canned line does better.
 MAX_RETRIES = 1
 NOTHING_TO_SAY = "(rien)"
@@ -128,7 +131,7 @@ def cap_length(text: str, max_chars: int) -> str:
 
 class Brain:
     """Budget, memory and persona around a backend. Not thread-safe by itself:
-    the service calls ask() and remark() from a single worker thread."""
+    the service calls ask(), remark() and forget() from a single worker thread."""
 
     def __init__(self, config: Config, backend: Backend, memory: Memory, counter: DailyCounter):
         self.config = config
@@ -138,11 +141,15 @@ class Brain:
 
     def ask(self, text: str, raw_context: str) -> str:
         context = parse_context(raw_context)
-        user_text = " ".join(text.split())
+        user_text = clip(text, MAX_ASK_CHARS)
         if not user_text:
             return ""
         reply = self._complete(context, user_text, remember_as=user_text)
         return reply or random.choice(EMPTY_REPLY_LINES)
+
+    def forget(self) -> None:
+        self.memory.clear()
+        log.info("memory cleared")
 
     def remark(self, raw_context: str) -> str:
         context = parse_context(raw_context)

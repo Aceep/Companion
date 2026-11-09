@@ -14,6 +14,9 @@ MOOD_LABELS = {
 # Window titles and lines are free text from the desktop: keep them from
 # flooding the request.
 MAX_TEXT_CHARS = 200
+# Far above what the extension sends (one clipped title, a few short lines):
+# anything bigger is not a context, and json.loads should not chew on it.
+MAX_CONTEXT_CHARS = 8192
 MAX_EVENTS = 10
 MAX_LAST_LINES = 5
 
@@ -40,6 +43,8 @@ def parse_context(raw: str) -> Context:
     """Parse the context argument. An empty string means no context at all."""
     if not raw.strip():
         return Context()
+    if len(raw) > MAX_CONTEXT_CHARS:
+        raise InvalidError(f"context is longer than {MAX_CONTEXT_CHARS} characters")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -118,7 +123,7 @@ def _parse_events(value: object) -> tuple[Event, ...]:
             raise InvalidError("event ago_s must be a number >= 0")
         if not isinstance(kind, str) or not kind.strip():
             raise InvalidError("event kind must be a non-empty string")
-        events.append(Event(ago_s=ago_s, kind=_clip(kind)))
+        events.append(Event(ago_s=ago_s, kind=clip(kind)))
     # The most recent ones matter; the extension may send them in any order.
     events.sort(key=lambda event: event.ago_s)
     return tuple(events[:MAX_EVENTS])
@@ -129,7 +134,7 @@ def _parse_last_lines(value: object) -> tuple[str, ...]:
         return ()
     if not isinstance(value, list) or not all(isinstance(line, str) for line in value):
         raise InvalidError("last_lines must be a list of strings")
-    cleaned = [_clip(line) for line in value if line.strip()]
+    cleaned = [clip(line) for line in value if line.strip()]
     return tuple(cleaned[-MAX_LAST_LINES:])
 
 
@@ -139,14 +144,15 @@ def _optional_text(data: dict, key: str) -> str | None:
         return None
     if not isinstance(value, str):
         raise InvalidError(f"{key} must be a string")
-    return _clip(value) or None
+    return clip(value) or None
 
 
-def _clip(text: str) -> str:
+def clip(text: str, limit: int = MAX_TEXT_CHARS) -> str:
+    """`text` on one line, whitespace collapsed, cut to `limit` characters with a trailing `…`."""
     flat = " ".join(text.split())
-    if len(flat) <= MAX_TEXT_CHARS:
+    if len(flat) <= limit:
         return flat
-    return flat[: MAX_TEXT_CHARS - 1] + "…"
+    return flat[: limit - 1] + "…"
 
 
 def _format_ago(seconds: float) -> str:
