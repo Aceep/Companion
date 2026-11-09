@@ -10,6 +10,26 @@
 préférences. Le dossier suit $XDG_DATA_HOME, ~/.local/share par défaut.
 scripts/pack.py fait la même chose sous-commande par sous-commande, sur un
 dossier quelconque.
+
+Pour Crêpe elle-même, pas besoin de pack : npm run deploy suffit.
+"""
+
+MCP_PIXELLAB = 'claude mcp add pixellab https://api.pixellab.ai/mcp -t http -H "Authorization: Bearer <token>"'
+
+SUITE = """
+Il reste à dessiner. Deux chemins :
+
+  Le skill inclus, .claude/skills/pack-pixellab : il crée les animations dans
+  ce dossier avec PixelLab, à partir d'une description ou d'un PNG de départ.
+  Branche le MCP PixelLab une fois (token sur pixellab.ai) :
+    {mcp}
+  puis ouvre Claude Code à la racine du dépôt et tape /pack-pixellab.
+
+  À la main : des PNG 80×80, le corps dans le cadre de gabarit.png, déposés en
+  <animation>/<animation>_00.png, _01.png… PACKS.md décrit chaque animation.
+
+Dans les deux cas, ensuite :
+  ./pack {identifiant}
 """
 
 import os
@@ -32,7 +52,10 @@ def main(arguments: list[str]) -> int:
     identifiant = arguments[0]
     dossier = dossier_des_packs() / identifiant
     if not (dossier / "pack.json").exists():
-        return outils.commande_init(dossier, relance=[f"./pack {identifiant}"])
+        code = outils.commande_init(dossier, relance=[])
+        if code == 0:
+            print(SUITE.format(mcp=MCP_PIXELLAB, identifiant=identifiant), end="")
+        return code
     print(f"Pack {dossier}\n")
     code = outils.commande_animations(dossier)
     if code != 0:
