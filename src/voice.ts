@@ -21,7 +21,7 @@ export const VOICE_EVENTS = [
     'agacee',
     'enervee',
     'boude',
-    'batte_rangee',
+    'menace_rangee',
     'deplacee',
     'retour_maison',
     'patience',
@@ -120,7 +120,7 @@ const PROBABILITY: Record<TriggerEvent, number> = {
     agacee: 1.0,
     enervee: 1.0,
     boude: 1.0,
-    batte_rangee: 1.0,
+    menace_rangee: 1.0,
     deplacee: 0.8,
     retour_maison: 1.0,
     patience: 0.8,
@@ -177,7 +177,7 @@ const PROBABILITY: Record<TriggerEvent, number> = {
  */
 const DIRECT_EVENTS: ReadonlySet<TriggerEvent> = new Set([
     'retour', 'clic', 'agacee', 'enervee', 'boude', 'trop_de_notifs', 'pause', 'couche_tard', 'fin_du_chut',
-    'enfin', 'perplexe', 'batte_rangee', 'retour_maison', 'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne',
+    'enfin', 'perplexe', 'menace_rangee', 'retour_maison', 'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne',
     'depart', 'retour_furieuse', 'tache_terminee', 'attention', 'pipeline_echec', 'ticket_nouveau', 'tickets_ouverts',
     'travail_non_commite', 'machine', 'agenda', 'commande_echec', 'commande_longue', 'fin_concentration',
     'reunion_fin_resume', 'reunion_fin_rien', 'encre',
@@ -197,7 +197,7 @@ const DIRECT_EVENTS: ReadonlySet<TriggerEvent> = new Set([
  * the end of a focus session would be missed if it did.
  */
 const INTERRUPTING_EVENTS: ReadonlySet<TriggerEvent> = new Set([
-    'agacee', 'enervee', 'boude', 'trop_de_notifs', 'enfin', 'perplexe', 'batte_rangee', 'retour_maison',
+    'agacee', 'enervee', 'boude', 'trop_de_notifs', 'enfin', 'perplexe', 'menace_rangee', 'retour_maison',
     'cerveau_absent', 'cerveau_fatigue', 'cerveau_panne', 'depart', 'retour_furieuse',
     'tache_terminee', 'attention', 'pipeline_echec', 'ticket_nouveau', 'tickets_ouverts',
     'travail_non_commite', 'machine', 'agenda', 'commande_echec', 'commande_longue', 'fin_concentration',

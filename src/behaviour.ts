@@ -39,10 +39,10 @@ const TAPPING = 'tapote';
 const BRIEF_TAP = 3 * SECOND;
 
 /** While she sulks she rests, and blinks, with the bat held in front of her. */
-const BAT_HELD = 'batte_tenue';
-const BAT_HELD_BLINK = 'batte_clignement';
+const BAT_HELD = 'menace_tenue';
+const BAT_HELD_BLINK = 'menace_clignement';
 /** The swing played backwards: the sulk is over, the bat goes back behind her. */
-const BAT_PUT_AWAY = 'batte_rangee';
+const BAT_PUT_AWAY = 'menace_rangee';
 
 /** Annoyed, she is that many times as likely as calm to crawl back after a drop. */
 const HOMESICK_ANNOYED_FACTOR = 2;
@@ -537,7 +537,7 @@ export class IdleBehaviour implements GazeHolder {
         this.endTapping();
         this.crawling = true;
         this.errand = true;
-        this.player.play(goingRight ? 'ramper_droite' : 'ramper_gauche');
+        this.player.play(goingRight ? 'marche_droite' : 'marche_gauche');
         move(() => {
             this.crawling = false;
             this.errand = false;
@@ -813,7 +813,7 @@ export class IdleBehaviour implements GazeHolder {
         this.cancelTimers();
         this.crawling = true;
         this.countStat('crawls');
-        this.player.play(origin.x > this.positioner.position.x ? 'ramper_droite' : 'ramper_gauche');
+        this.player.play(origin.x > this.positioner.position.x ? 'marche_droite' : 'marche_gauche');
         this.say('retour_maison');
         this.positioner.travelTo(origin, CRAWL_SPEED * this.spriteScale(), () => {
             this.crawling = false;
@@ -831,7 +831,7 @@ export class IdleBehaviour implements GazeHolder {
         // A notification landing right now would cut the swing short.
         this.lastReactionAt = Date.now();
         // She is sulking already, so the swing ends on the bat held in front of her.
-        this.playGesture('batte');
+        this.playGesture('menace');
         this.say('enervee');
         this.scheduleSulkEnd();
     }
@@ -909,7 +909,7 @@ export class IdleBehaviour implements GazeHolder {
         if (restPoseOf(current) !== BAT_HELD && current !== BAT_HELD_BLINK)
             return;
         this.playGesture(BAT_PUT_AWAY);
-        this.say('batte_rangee');
+        this.say('menace_rangee');
     }
 
     private playGesture(name: string, onDone: () => void = () => {}): void {
@@ -1088,7 +1088,7 @@ export class IdleBehaviour implements GazeHolder {
         this.cancelFidget = null;
 
         const goingRight = destination > this.spriteCenterX();
-        this.player.play(goingRight ? 'ramper_droite' : 'ramper_gauche');
+        this.player.play(goingRight ? 'marche_droite' : 'marche_gauche');
         this.positioner.moveTo(destination, CRAWL_SPEED * this.spriteScale(), () => {
             this.crawling = false;
             this.player.play(this.restFrame);

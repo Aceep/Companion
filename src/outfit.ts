@@ -111,7 +111,7 @@ function toOutfitDef(id: OutfitId, raw: RawOutfit, assetsDir: Gio.File, animatio
     return {id, usage: raw.usage, layers, visibleDuring, hiddenDuring};
 }
 
-/** An animation name, or a prefix ending in `*`: "ramper_*" covers both crawls. */
+/** An animation name, or a prefix ending in `*`: "marche_*" covers both walks. */
 function matches(pattern: string, name: string): boolean {
     return pattern.endsWith('*') ? name.startsWith(pattern.slice(0, -1)) : name === pattern;
 }

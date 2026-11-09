@@ -20,7 +20,7 @@ export type GazeDirection = typeof GAZE_DIRECTIONS[number];
 /** Each resting pose and the prefix of its variants with the eyes turned, drawn by `scripts/make-eyes.py`. */
 const GAZE_POSES: Readonly<Record<string, string>> = {
     attente: 'yeux',
-    batte_tenue: 'batte_yeux',
+    menace_tenue: 'menace_yeux',
 };
 
 /** The variant of `restPose` looking `direction`, or `restPose` itself when looking straight or it has none. */
