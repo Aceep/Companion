@@ -88,7 +88,10 @@ export class CrepeSprite {
         layer.set_size(this.size, this.size);
     }
 
-    /** Decodes every frame of the given animations so playback never stutters. */
+    /**
+     * Decodes every frame of the given animations up front, so the first
+     * time they play does not stutter. Any other frame is decoded on first use.
+     */
     preload(animations: Iterable<AnimationDef>): void {
         for (const animation of animations) {
             for (const path of animation.frames)
@@ -117,10 +120,12 @@ export class CrepeSprite {
 
         // Flipping the pixels rather than the actor keeps her position, hitbox and bubble untouched.
         const pixbuf = decodePixbuf(path, mirrored);
+        // get_pixels() copies the whole buffer: one copy serves both the head scan and the texture.
+        const pixels = pixbuf.get_pixels();
         // Her head is centred, so a mirrored frame has it at the same height.
         if (!this.headTops.has(path))
-            this.headTops.set(path, headTopOf(pixbuf));
-        const image = imageOf(pixbuf);
+            this.headTops.set(path, headTopOf(pixbuf, pixels));
+        const image = imageOf(pixbuf, pixels);
         this.frameCache.set(key, image);
         return image;
     }
@@ -141,11 +146,11 @@ export function decodePixbuf(path: string, mirrored: boolean): GdkPixbuf.Pixbuf 
     return pixbuf;
 }
 
-export function imageOf(pixbuf: GdkPixbuf.Pixbuf): Clutter.Image {
+export function imageOf(pixbuf: GdkPixbuf.Pixbuf, pixels: Uint8Array = pixbuf.get_pixels()): Clutter.Image {
     const format = pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888;
     const image = new Clutter.Image();
     image.set_data(
-        pixbuf.get_pixels(),
+        pixels,
         format,
         pixbuf.get_width(),
         pixbuf.get_height(),
@@ -162,19 +167,20 @@ const HEAD_ROW_MIN_PIXELS = 6;
 const SNORE_MIN_CHANNEL = 236;
 
 /** The first row of the frame with her head in it; the resting pose's own when there is none. */
-function headTopOf(pixbuf: GdkPixbuf.Pixbuf): number {
+function headTopOf(pixbuf: GdkPixbuf.Pixbuf, pixels: Uint8Array): number {
     if (!pixbuf.get_has_alpha())
         return HEAD_PADDING;
-    const pixels = pixbuf.get_pixels();
     const stride = pixbuf.get_rowstride();
     const channels = pixbuf.get_n_channels();
-    const [left, right] = HEAD_COLUMNS;
-    for (let y = 0; y < pixbuf.get_height(); y++) {
+    const height = pixbuf.get_height();
+    const [left, headRight] = HEAD_COLUMNS;
+    const right = Math.min(headRight, pixbuf.get_width());
+    for (let y = 0; y < height; y++) {
         let count = 0;
-        for (let x = left; x < Math.min(right, pixbuf.get_width()); x++) {
+        for (let x = left; x < right; x++) {
             const at = y * stride + x * channels;
-            const [red = 0, green = 0, blue = 0, alpha = 0] = pixels.subarray(at, at + 4);
-            if (alpha > 0 && Math.min(red, green, blue) < SNORE_MIN_CHANNEL)
+            const alpha = pixels[at + 3] ?? 0;
+            if (alpha > 0 && Math.min(pixels[at] ?? 0, pixels[at + 1] ?? 0, pixels[at + 2] ?? 0) < SNORE_MIN_CHANNEL)
                 count++;
         }
         if (count >= HEAD_ROW_MIN_PIXELS)

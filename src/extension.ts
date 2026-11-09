@@ -16,7 +16,7 @@ import {contextJson} from './context.js';
 import {MeetingDigest, meetingMode, type MeetingMode} from './digest.js';
 import {Dodger} from './dodge.js';
 import {DragHandler} from './drag.js';
-import {EyesFollower} from './gaze.js';
+import {EyesFollower, GAZE_DIRECTIONS, gazePose} from './gaze.js';
 import {Hitbox} from './hitbox.js';
 import {InkSplatter} from './ink.js';
 import {KeywordMatcher, looksLikeWaiting, type Reaction} from './keywords.js';
@@ -28,7 +28,7 @@ import {MusicWatcher} from './music.js';
 import {NudgeService, type RemindOutcome} from './nudge.js';
 import {INFO_MAX, TEXT_IN_LINE_MAX, oneLine, ticketCount, type NudgeKind} from './nudgetext.js';
 import {OutfitLayer, loadOutfits} from './outfit.js';
-import {AnimationPlayer} from './player.js';
+import {AnimationPlayer, IDLE_ANIMATION} from './player.js';
 import {Positioner, type Side} from './positioner.js';
 import {Presence} from './presence.js';
 import {PromptBox} from './prompt.js';
@@ -163,7 +163,9 @@ export default class CrepeExtension extends Extension {
         this.stats = stats;
 
         const sprite = new CrepeSprite(settings.scale * this.themeScale());
-        sprite.preload(animations.values());
+        // Enabling happens at every unlock: only what shows at rest is decoded now, the rest on first use.
+        const restingAnimations = [IDLE_ANIMATION, 'clignement', ...GAZE_DIRECTIONS.map(direction => gazePose(IDLE_ANIMATION, direction))];
+        sprite.preload(restingAnimations.flatMap(name => animations.get(name) ?? []));
         const outfits = new OutfitLayer(sprite, loadOutfits(assetsDir, animations.keys()));
         this.outfits = outfits;
         const hitbox = new Hitbox(sprite);
