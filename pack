@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Un pack de sprites en une commande, depuis la racine du dépôt :
+
+    ./pack <id>     la première fois : crée ~/.local/share/crepe/packs/<id>
+                    (quatre questions, pack.json, gabarit, dossiers obligatoires)
+    ./pack <id>     ensuite : écrit animations.json d'après les PNG déposés,
+                    puis vérifie le pack et dit ce qu'elle fera autrement
+
+<id> en minuscules, chiffres, « - » ou « _ » : c'est le nom du pack dans les
+préférences. Le dossier suit $XDG_DATA_HOME, ~/.local/share par défaut.
+scripts/pack.py fait la même chose sous-commande par sous-commande, sur un
+dossier quelconque.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
+import pack as outils  # noqa: E402
+
+
+def dossier_des_packs() -> Path:
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(base) / "crepe" / "packs"
+
+
+def main(arguments: list[str]) -> int:
+    if len(arguments) != 1 or arguments[0].startswith("-"):
+        print(__doc__.strip())
+        return 2
+    identifiant = arguments[0]
+    dossier = dossier_des_packs() / identifiant
+    if not (dossier / "pack.json").exists():
+        return outils.commande_init(dossier, relance=[f"./pack {identifiant}"])
+    print(f"Pack {dossier}\n")
+    code = outils.commande_animations(dossier)
+    if code != 0:
+        return code
+    print()
+    return outils.commande_check(dossier)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

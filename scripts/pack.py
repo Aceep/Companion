@@ -246,7 +246,9 @@ def gabarit() -> bytes:
 
 # ---------------------------------------------------------------- commandes
 
-def commande_init(dossier: Path) -> int:
+def commande_init(dossier: Path, relance: list[str] | None = None) -> int:
+    """`relance` : les commandes à lancer une fois les PNG déposés ; par défaut
+    celles de ce script, `./pack` passe la sienne."""
     if not ID_MOTIF.match(dossier.name):
         print(f"Le nom du dossier « {dossier.name} » doit être en minuscules, chiffres, « - » ou « _ » : c'est l'identifiant du pack.")
         return 1
@@ -277,8 +279,8 @@ def commande_init(dossier: Path) -> int:
     print("  pack.json, gabarit.png (le cadre du corps, à garder sous le calque de dessin)")
     print("  " + ", ".join(f"{animation}/" for animation in OBLIGATOIRES) + " : les trois animations obligatoires, à remplir")
     print("\nDépose les PNG en <animation>/<animation>_00.png, _01.png… puis lance :")
-    print(f"  scripts/pack.py animations {dossier}")
-    print(f"  scripts/pack.py check {dossier}")
+    for commande in relance or [f"scripts/pack.py animations {dossier}", f"scripts/pack.py check {dossier}"]:
+        print(f"  {commande}")
     print("PACKS.md décrit chaque animation.")
     return 0
 

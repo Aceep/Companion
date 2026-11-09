@@ -16,7 +16,7 @@ the PixelLab recipe for new animations.
 She can also be drawn as someone else: a sprite pack is a folder of 80×80
 frames under the names below, chosen in the preferences, with its own
 name, word and lines. [PACKS.md](PACKS.md) (in French, for the people
-who draw them) says what a pack holds and `scripts/pack.py` creates,
+who draw them) says what a pack holds and `./pack <id>` creates,
 describes and checks one.
 
 ## Requirements
@@ -593,9 +593,14 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/prefs.ts` | Preferences window (libadwaita) |
 | `src/extension.ts` | Wires everything into the shell, cleans up on disable |
 | `schemas/` | GSettings schema, compiled at deploy time |
-| `scripts/` | Terminal hook for bash, deploy, nested-shell, blink-frame, menace-pose, eye-pose and placeholder-outfit helpers, and `pack.py` to create, describe and check a sprite pack |
+| `scripts/` | Terminal hook for bash, deploy, nested-shell, blink-frame, menace-pose, eye-pose and placeholder-outfit helpers, and `pack.py`, the sprite-pack tool behind `./pack` |
 
 ## Sprite packs
+
+`./pack <id>` at the repository root creates a pack folder under
+`~/.local/share/crepe/packs/`, then on later runs writes its
+`animations.json` from the PNGs present and checks it; `scripts/pack.py`
+exposes the three steps separately on any folder.
 
 `assets/` is itself a pack: `pack.json` names her and her word, and the
 animation names are the contract any other pack follows (`attente`,

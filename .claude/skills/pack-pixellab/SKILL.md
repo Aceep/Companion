@@ -1,6 +1,6 @@
 ---
 name: pack-pixellab
-description: Dessine un pack de sprites pour Crêpe avec PixelLab (MCP officiel ou interface web), depuis une description ou un PNG existant, puis le décrit et le vérifie avec scripts/pack.py. À utiliser quand on veut un autre personnage que Crêpe sur le bureau.
+description: Dessine un pack de sprites pour Crêpe avec PixelLab (MCP officiel ou interface web), depuis une description ou un PNG existant, puis le décrit et le vérifie avec ./pack. À utiliser quand on veut un autre personnage que Crêpe sur le bureau.
 ---
 
 # Un pack de sprites avec PixelLab
@@ -28,13 +28,18 @@ images.
 2. Demande ce qui manque, en une fois : l'identifiant du pack (minuscules,
    ex. `poireau`), le nom affiché, le mot de sa langue, l'auteur, et le point
    de départ : une description du personnage, ou le chemin d'un PNG existant.
-3. Crée le dossier avec les réponses (le script est interactif, on lui passe
-   les réponses sur l'entrée standard) :
+3. Crée le dossier avec les réponses, depuis la racine du dépôt (le script
+   est interactif, on lui passe les réponses sur l'entrée standard) :
 
    ```sh
    printf '%s\n%s\n%s\n%s\n' "Poireau" "poireau" "Léa" "Un poireau pressé" \
-     | scripts/pack.py init ~/.local/share/crepe/packs/poireau
+     | ./pack poireau
    ```
+
+   Le dossier est `~/.local/share/crepe/packs/poireau` (ou sous
+   `$XDG_DATA_HOME`). Par la suite, `./pack poireau` écrit `animations.json`
+   et vérifie le pack ; c'est la commande à relancer après chaque lot
+   d'images.
 
 Ne regénère jamais une image que l'auteur a déjà dessinée ou validée sans
 le demander. Garde tout en 80×80 : si un outil ne sort pas cette taille,
@@ -59,12 +64,13 @@ l'écran avant la suite.
 Puis :
 
 ```sh
-scripts/pack.py check <dossier>
+./pack <id>
 ```
 
-Il dira `animations.json manque`, c'est attendu à ce stade, mais il compte
-aussi les pixels hors cadre de `attente_00.png` : zéro, ou on recadre.
-Montre l'image à l'auteur (lis le PNG) et attends son accord.
+Il signalera `clignement` et `marche_droite` manquants, c'est attendu à ce
+stade. Ce qui compte ici, c'est l'avertissement sur les pixels hors cadre
+de `attente_00.png` : s'il apparaît, on recadre ; s'il n'y en a pas, le
+cadre est bon. Montre l'image à l'auteur (lis le PNG) et attends son accord.
 
 ## Le minimum : clignement et marche
 
@@ -81,8 +87,7 @@ Montre l'image à l'auteur (lis le PNG) et attends son accord.
   déplace. Pas besoin de `marche_gauche`, l'extension retourne l'image.
 
 ```sh
-scripts/pack.py animations <dossier>
-scripts/pack.py check <dossier>
+./pack <id>
 ```
 
 À ce stade le pack est valide et utilisable. Propose de l'essayer avant
@@ -95,15 +100,15 @@ gsettings set org.gnome.shell.extensions.crepe sprite-pack <id>
 ## Les animations optionnelles, dans l'ordre utile
 
 Une génération chacune, avec `animate_character`/`animate_image` sur la
-pose de repos, 9 images sauf mention, et le même rituel après chaque lot :
-`pack.py animations`, `pack.py check`, montrer, corriger les yeux.
+pose de repos, 9 images sauf mention, et le même rituel après chaque lot : `./pack <id>`,
+montrer, corriger les yeux.
 
 | Dossier | Prompt (anglais) | Note |
 | --- | --- | --- |
 | `sursaut` | `startled jump, surprised, lands back in rest pose` | Déclenche aussi la plupart des réactions quand les autres manquent |
 | `facepalm` | `facepalm, hand (or limb) on face, dismayed, back to rest pose` | Si pas de main : la tête qui tombe en avant |
 | `pouce` | `thumbs up, pleased, back to rest pose` | Un équivalent : un hochement, une feuille levée |
-| `endormie` | `falling asleep, eyes closing, slumping, then slow breathing` | Les 4 dernières images bouclent ; `pack.py` règle `boucle_fin` |
+| `endormie` | `falling asleep, eyes closing, slumping, then slow breathing` | Les 4 dernières images bouclent ; `./pack` règle `boucle_fin` |
 | `coucou` | `waving hello, friendly, back to rest pose` | |
 | `baillement` | `big yawn, mouth open, back to rest pose` | |
 | `soupir` | `sighing, shoulders drop, back to rest pose` | |
@@ -134,7 +139,7 @@ coordonnées ; adapte les coordonnées, ou refais-le en Python standard.
 
 ## Pour finir
 
-- `scripts/pack.py check <dossier>` une dernière fois : lis les notes à
+- `./pack <id>` une dernière fois : lis les notes à
   l'auteur, c'est ce que le personnage fera autrement.
 - Propose `repliques.json` si l'auteur veut des phrases à lui (format dans
   `PACKS.md`), sinon les génériques servent.
@@ -146,6 +151,5 @@ coordonnées ; adapte les coordonnées, ou refais-le en Python standard.
 Même recette, même table de prompts, dans pixellab.ai : créer le
 personnage à 80×80, une animation par ligne, exporter les images une par
 une (ou la planche, puis la découper en 80×80 avec un script Python
-standard) dans `<dossier>/<animation>/<animation>_NN.png`. Puis les deux
-commandes `pack.py animations` et `pack.py check`, et la page
-« Apparence » des préférences.
+standard) dans `<dossier>/<animation>/<animation>_NN.png`. Puis `./pack
+<id>`, et la page « Apparence » des préférences.

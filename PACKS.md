@@ -8,17 +8,23 @@ Ce qu'un pack ne dessine pas, elle s'en passe.
 
 ## En deux mots
 
-1. `scripts/pack.py init ~/.local/share/crepe/packs/poireau` pose trois
-   questions et crée le dossier, `pack.json`, le gabarit et les trois
-   dossiers obligatoires.
+1. À la racine du clone de Crêpe, `./pack poireau` (Python 3 suffit).
+   `poireau` est l'identifiant du pack, en minuscules. Le script pose
+   quatre questions (nom affiché, mot répété, auteur, description) et
+   crée `~/.local/share/crepe/packs/poireau/` avec `pack.json`, le
+   gabarit et les trois dossiers obligatoires, vides.
 2. Dessine les images 80×80 dans le cadre du gabarit et dépose-les en
    `attente/attente_00.png`, `clignement/clignement_00.png`… (voir la
    table plus bas pour les noms et le nombre d'images).
-3. `scripts/pack.py animations <dossier>` écrit `animations.json` d'après
-   les images présentes ; `scripts/pack.py check <dossier>` vérifie le
-   tout et dit ce qu'elle fera autrement.
+3. `./pack poireau` à nouveau : il écrit `animations.json` d'après les
+   images présentes, vérifie le tout et dit ce qu'elle fera autrement.
+   Recommence après chaque ajout d'images.
 4. Dans les préférences, page « Apparence », choisis le pack. Le
    changement est immédiat.
+
+`scripts/pack.py` fait la même chose en trois sous-commandes (`init`,
+`animations`, `check`) sur un dossier de ton choix, pour qui veut la
+main sur chaque étape.
 
 Le minimum pour qu'un pack soit accepté : `attente` (1 image),
 `clignement` (le clignement sur cette pose) et `marche_droite`. Tout le
@@ -29,7 +35,7 @@ reste est optionnel.
 ```
 ~/.local/share/crepe/packs/<id>/      <id> : minuscules, chiffres, - et _
   pack.json                           obligatoire
-  animations.json                     obligatoire (pack.py l'écrit)
+  animations.json                     obligatoire (`./pack` l'écrit)
   attente/attente_00.png              obligatoire
   clignement/clignement_00.png …      obligatoire
   marche_droite/marche_droite_00.png …obligatoire
@@ -66,14 +72,14 @@ reste est optionnel.
 Chaque image fait 80×80 pixels, fond transparent. Le corps en pose de
 repos tient dans un cadre fixe : 20 pixels transparents en haut, 12 en
 bas, 12 de chaque côté, soit une zone de 56×48 pour le personnage.
-`pack.py init` dépose `gabarit.png` avec ce cadre en rouge : garde-le
+`./pack <id>` dépose `gabarit.png` avec ce cadre en rouge : garde-le
 sous ton calque de dessin.
 
 Pourquoi : la zone cliquable est ce cadre et pas l'image entière, pour
 ne pas voler les clics des fenêtres ; la bulle se pose au-dessus de lui ;
 quand il se cache derrière le bord de l'écran, c'est ce cadre qui dépasse.
 Un dessin qui déborde marche quand même, mais tout ça sera décalé.
-`pack.py check` compte les pixels hors cadre de `attente_00.png` et le dit.
+`./pack <id>` compte les pixels hors cadre de `attente_00.png` et le dit.
 
 Les gestes peuvent sortir du cadre (un bras qui pointe, un saut) : seule
 la pose de repos compte.
@@ -146,7 +152,7 @@ yeux » est grisé. Pour Crêpe elles sont dérivées de la pose de repos par
 les coordonnées) ; adapte ses constantes à ton dessin si tu veux les
 générer plutôt que les dessiner.
 
-Les durées : `pack.py animations` met celles de Crêpe par défaut (130 ms
+Les durées : `./pack <id>` met celles de Crêpe par défaut (130 ms
 par image pour un geste, 1000 pour une pose fixe, `[40, 60, 110, 60]` pour
 un clignement). Un geste qui doit marquer une pause (le facepalm tenu, le
 sursaut en l'air) se règle en allongeant l'image concernée dans
@@ -186,7 +192,7 @@ Les événements et ce qu'ils disent sont la liste `VOICE_EVENTS` de
 `{texte}`, `{tickets}`, `{quand}`, `{jour}`, `{nombre}`, `{resume}`,
 `{notifs}`, `{erreurs}`, `{succes}`, `{clics}`, `{nudges}`) et leur usage
 sont décrits dans le README, section « What she does ». Une liste doit
-avoir au moins une phrase ; `pack.py check` relève les valeurs inconnues
+avoir au moins une phrase ; `./pack <id>` relève les valeurs inconnues
 et les phrases de plus de 90 caractères.
 
 Pour la voix, les règles de Crêpe valent pour tout le monde : court, sec,
@@ -214,7 +220,7 @@ Un pack que l'extension ne peut pas charger (pas de `pack.json`, une
 animation obligatoire absente, une image manquante, un JSON cassé) ne la
 casse jamais : Crêpe s'affiche à la place, la raison va dans le journal
 (`journalctl --user -f -o cat /usr/bin/gnome-shell`, lignes « Crêpe: »)
-et dans la ligne « État » des préférences. `pack.py check` dit la même
+et dans la ligne « État » des préférences. `./pack <id>` dit la même
 chose avant d'essayer.
 
 ## Avec PixelLab
@@ -223,7 +229,7 @@ Les sprites de Crêpe viennent de PixelLab. Pour un pack, la recette est
 la même : un personnage 80×80 vu de face, puis une animation par ligne de
 la table, exportée image par image dans le dossier du bon nom. Un skill
 pour Claude Code, dans `.claude/skills/pack-pixellab/`, pilote PixelLab
-par son MCP et enchaîne `pack.py` ; il décrit aussi la marche à suivre à
+par son MCP et enchaîne `./pack` ; il décrit aussi la marche à suivre à
 la main dans l'interface web. PixelLab a tendance à redessiner les yeux
 d'une image à l'autre : vérifie-les, et remets ceux de la pose de repos
 quand ils ont bougé.
