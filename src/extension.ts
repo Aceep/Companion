@@ -154,282 +154,294 @@ export default class CrepeExtension extends Extension {
     override enable(): void {
         const settings = new CrepeSettings(this.getSettings());
         const assetsDir = this.dir.get_child('assets');
+        // Every asset is read and checked before anything reaches the stage or listens to a signal: a bad
+        // JSON file then fails the enable with nothing to clean up.
         const animations = loadAnimations(assetsDir);
-        const timers = new TimerPool();
-        const stats = new StatsStore(() => settings.stats, json => {
-            settings.stats = json;
-        }, timers.schedule);
-        // Set before anything can count: the behaviour and the watchers below report to it.
-        this.stats = stats;
-
-        const sprite = new CrepeSprite(settings.scale * this.themeScale());
-        // Enabling happens at every unlock: only what shows at rest is decoded now, the rest on first use.
-        const restingAnimations = [IDLE_ANIMATION, 'clignement', ...GAZE_DIRECTIONS.map(direction => gazePose(IDLE_ANIMATION, direction))];
-        sprite.preload(restingAnimations.flatMap(name => animations.get(name) ?? []));
-        const outfits = new OutfitLayer(sprite, loadOutfits(assetsDir, animations.keys()));
-        this.outfits = outfits;
-        const hitbox = new Hitbox(sprite);
-        const layer = new SpriteLayer(sprite, hitbox);
-        layer.show(settings.layer);
-        const positioner = new Positioner(sprite, settings);
-        const bubble = new SpeechBubble(sprite, timers);
-        const voice = new Voice(settings, () => bubble.isShowing);
+        const outfitCatalog = loadOutfits(assetsDir, animations.keys());
+        const voice = new Voice(settings, () => this.bubble?.isShowing === true);
         voice.loadLines(assetsDir);
 
-        const player = new AnimationPlayer(animations, timers.schedule, (animation, frame) => {
-            sprite.showFrame(animation, frame);
-            outfits.frameShown(animation, frame);
-        });
-        player.setAnimationListener(animation => {
-            // Falling asleep, waking up and sulking all start an animation: what she wears follows at once.
-            this.syncOutfits();
-            outfits.animationChanged(animation);
-        });
-        const behaviour = new IdleBehaviour(player, timers, positioner, settings, {
-            centerX: () => sprite.actor.x + sprite.size / 2,
-            scale: () => sprite.currentScale,
-        }, (event, values) => {
-            // A fact of the past week comes up in place of the day's first idle remark.
-            if (event === 'commentaire' && this.recallFact())
-                return;
-            // Any line may mention the open tickets; the voice decides how often.
-            const tickets = this.behaviour?.recollection.openTickets ?? null;
-            const line = voice.speak(event, tickets === null ? values : {tickets: String(tickets), ...values});
-            if (!line)
-                return;
-            if (event === 'commentaire')
-                stats.increment('remarks');
-            this.sayLine(line);
-        });
-        behaviour.setStatsListener(counter => stats.increment(counter));
-        behaviour.setFocusListener(focusing => this.focusChanged(focusing));
-        behaviour.setInkHandler(reason => this.throwInk(reason));
-        const presence = new Presence(sprite, hitbox, positioner, behaviour, settings);
-        this.eyes = new EyesFollower(behaviour, timers, {
-            eyes: () => ({
-                x: sprite.actor.x + sprite.size / 2,
-                y: sprite.actor.y + (HEAD_PADDING + EYES_BELOW_HEAD) * sprite.currentScale,
-            }),
-            body: () => ({x: hitbox.actor.x, y: hitbox.actor.y, width: hitbox.actor.width, height: hitbox.actor.height}),
-        });
-        this.dodger = new Dodger(sprite, presence, behaviour, positioner, timers, () => behaviour.remark('esquive'));
-        behaviour.setStormHandler({
-            leave: () => {
-                // The menu and the box follow her; she is not taking questions on the way out.
-                menu.close();
-                prompt.close();
-                return presence.stormOff();
-            },
-            comeBack: onHome => presence.stormBack(onHome),
-        });
-        const prompt = new PromptBox(sprite, {
-            onSubmit: text => this.ask(text),
-            onClosed: () => this.bubble?.setAnchor(null),
-        });
+        // The shell never calls disable() after a failed enable(): whatever was built is torn down here,
+        // or an invisible actor would swallow clicks until logout. Each piece is kept on `this` as soon
+        // as it exists, so disable() finds it.
+        try {
+            this.settings = settings;
+            this.voice = voice;
+            const timers = new TimerPool();
+            this.timers = timers;
+            const stats = new StatsStore(() => settings.stats, json => {
+                settings.stats = json;
+            }, timers.schedule);
+            // Set before anything can count: the behaviour and the watchers below report to it.
+            this.stats = stats;
 
-        const desktopNotifications = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
-        const menu = new CrepeMenu(hitbox.actor, settings, {
-            openPreferences: () => this.openPreferences(),
-            toggleHidden: () => presence.toggleHidden(),
-            isHidden: () => presence.isHidden,
-            muteNotifications: () => desktopNotifications.set_boolean('show-banners', false),
-            canConverse: () => settings.brain && this.brain?.available === true,
-            openPrompt: () => this.openPrompt(),
-            forgetConversation: () => this.forgetConversation(),
-            toggleFocus: () => this.toggleFocus(),
-            isFocusing: () => behaviour.focusMode,
-            addReminder: input => this.addReminderFromMenu(input),
-            pendingReminders: () => this.pendingReminderLabels(),
-            cancelReminder: id => this.reminders?.cancel(id),
-        });
-        this.drag = new DragHandler(hitbox.actor, sprite.actor, {
-            onClick: () => {
-                // A click is how she is told a reminder was seen; it is no pestering.
-                if (this.reminders?.acknowledge()) {
-                    bubble.dismiss();
-                    return;
-                }
-                // The sliver of her left at the edge is there to be clicked; out there a click is no pestering.
-                if (presence.isHidden) {
-                    presence.comeBack();
-                    return;
-                }
-                stats.increment('clicks');
-                behaviour.pester('click');
-            },
-            onSecondaryClick: () => menu.toggle(),
-            onDragStart: () => {
-                // The menu stays anchored where she was picked up, so it would float in the void.
-                menu.close();
-                prompt.close();
-                bubble.hide();
-                presence.releaseForDrag();
-                behaviour.interruptForDrag();
-            },
-            onDrop: () => {
-                stats.increment('drags');
-                positioner.rememberPosition();
-                behaviour.resumeAfterDrag();
-                behaviour.pester('drag');
-            },
-            bounds: () => positioner.placementArea(),
-        });
+            const sprite = new CrepeSprite(settings.scale * this.themeScale());
+            this.sprite = sprite;
+            // Enabling happens at every unlock: only what shows at rest is decoded now, the rest on first use.
+            const restingAnimations = [IDLE_ANIMATION, 'clignement', ...GAZE_DIRECTIONS.map(direction => gazePose(IDLE_ANIMATION, direction))];
+            sprite.preload(restingAnimations.flatMap(name => animations.get(name) ?? []));
+            const outfits = new OutfitLayer(sprite, outfitCatalog);
+            this.outfits = outfits;
+            const hitbox = new Hitbox(sprite);
+            this.hitbox = hitbox;
+            const layer = new SpriteLayer(sprite, hitbox);
+            this.layer = layer;
+            layer.show(settings.layer);
+            const positioner = new Positioner(sprite, settings);
+            this.positioner = positioner;
+            const bubble = new SpeechBubble(sprite, timers);
+            this.bubble = bubble;
 
-        const icon = Gio.FileIcon.new(assetsDir.get_child('reference').get_child('1_sud_face.png'));
-        this.toggle = new CrepeToggle(icon, settings.gsettings);
-
-        // Banners off: the tray still gets every notification, she just stops talking about them.
-        this.bannersHandlerId = desktopNotifications.connect('changed::show-banners', () =>
-            this.syncHush(!this.flippingBannersForFocus));
-
-        const keywordLists = () => ({
-            error: settings.errorKeywords,
-            success: settings.successKeywords,
-            busy: settings.busyKeywords,
-        });
-        // Compiled once per edit of the lists rather than once per notification or title.
-        let keywords = new KeywordMatcher(keywordLists());
-        for (const key of ['error-keywords', 'success-keywords', 'busy-keywords'] as const) {
-            settings.onChanged(key, () => {
-                keywords = new KeywordMatcher(keywordLists());
+            const player = new AnimationPlayer(animations, timers.schedule, (animation, frame) => {
+                sprite.showFrame(animation, frame);
+                outfits.frameShown(animation, frame);
             });
-        }
-
-        const tally = new NotificationTally();
-        this.notifications = new NotificationWatcher(text => {
-            // Counted whether she reacts or not: the recap is about your day, not hers.
-            const keyword = keywords.classify(text);
-            stats.increment('notifications');
-            if (keyword === 'facepalm')
-                stats.increment('errors');
-            else if (keyword === 'pouce')
-                stats.increment('successes');
-            // Off-screen she sees nothing; focusing, she lets them go by.
-            if (!settings.reactToNotifications || presence.isAway || behaviour.focusMode || this.meetingState.silent)
-                return;
-            const flooded = !behaviour.isHushed && tally.add(Date.now());
-            const options: ReactionOptions = flooded ? {event: 'trop_de_notifs'} : {};
-            const reacted = keyword ? this.reactToKeyword(keyword, null, options) : this.jumpAtNotification(options);
-            if (!flooded)
-                return;
-            // Mid-gesture or right after one, she still makes the offer.
-            if (!reacted)
-                behaviour.remark('trop_de_notifs');
-            this.offerMute();
-        });
-
-        const longTasks = new LongTasks();
-        this.windows = new FocusedWindowWatcher((title, windowId) => {
-            if (!settings.reactToWindows) {
-                this.endWait();
-                return;
-            }
-            const reaction = keywords.classify(title);
-            // "Building... failed" is over, whatever its dots say.
-            this.followWait(windowId, reaction !== 'facepalm' && looksLikeWaiting(title));
-            // Only what she reacted to is counted: a title is seen again every time its window gets focus.
-            if (reaction === 'facepalm') {
-                longTasks.forget(windowId);
-                if (this.reactToKeyword('facepalm', errorKey(windowId, title)))
-                    stats.increment('errors');
-                return;
-            }
-            if (longTasks.update(windowId, keywords.looksBusy(title), Date.now())) {
-                if (behaviour.react('pouce', {event: 'patience'}))
-                    stats.increment('successes');
-                return;
-            }
-            if (reaction && this.reactToKeyword(reaction, null))
-                stats.increment(reaction === 'pouce' ? 'successes' : 'errors');
-        }, () => this.endWait());
-        this.newWindows = new NewWindowWatcher(frame => this.pointAtWindow(frame));
-
-        settings.onChanged('visible', () => this.applyVisibility());
-        settings.onChanged('scale', () => {
-            sprite.setScale(settings.scale * this.themeScale());
-            presence.settle();
-        });
-        settings.onChanged('sleep-after-minutes', () => behaviour.refresh());
-        settings.onChanged('crawl', () => behaviour.refresh());
-        settings.onChanged('crawl-interval-minutes', () => behaviour.refresh());
-        settings.onChanged('comment-interval-minutes', () => behaviour.refresh());
-        settings.onChanged('stats', () => stats.settingChanged());
-        settings.onChanged('hide-during-screencast', () => this.syncMeeting());
-        settings.onChanged('quiet-during-calls', () => this.syncMeeting());
-        settings.onChanged('focus-minutes', () => menu.syncFocus());
-        settings.onChanged('perch', () => presence.refresh());
-        settings.onChanged('eyes-follow', () => this.syncEyes());
-        settings.onChanged('dodge', () => this.syncDodge());
-        settings.onChanged('layer', () => this.syncLayer());
-        settings.onChanged('react-to-music', () => this.syncMusic());
-        settings.onChanged('brain', () => this.syncBrain());
-        settings.onChanged('ink', () => {
-            if (!settings.ink)
-                this.ink?.clear();
-        });
-        settings.onChanged('outfits', () => this.syncOutfits());
-        settings.onChanged('outfit-override', () => this.syncOutfits());
-        settings.onChanged('birthday', () => this.syncOutfits());
-
-        this.settings = settings;
-        this.timers = timers;
-        this.sprite = sprite;
-        this.hitbox = hitbox;
-        this.layer = layer;
-        this.bubble = bubble;
-        this.voice = voice;
-        this.menu = menu;
-        this.prompt = prompt;
-        this.positioner = positioner;
-        this.behaviour = behaviour;
-        this.presence = presence;
-        this.desktopNotifications = desktopNotifications;
-        this.longTasks = longTasks;
-        this.errors = new ErrorHistory();
-        this.ink = new InkSplatter(assetsDir, timers, () => this.themeScale());
-        this.trackGate = new TrackGate(() => this.music?.isPlaying === true);
-        this.reminders = new ReminderCenter({
-            read: () => settings.reminders,
-            write: json => {
-                settings.reminders = json;
-            },
-            schedule: timers.schedule,
-            now: () => Date.now(),
-            canDeliver: () => this.canDeliverReminder(),
-            deliver: (reminder, kind) => this.deliverReminder(reminder, kind),
-            ignored: () => this.reminderIgnored(),
-            changed: () => this.menu?.syncReminders(),
-        });
-        // Banners may already be off: she starts hushed, without making a show of it.
-        this.syncHush(false);
-        this.syncMusic();
-        this.syncBrain();
-        behaviour.setRemarkSource({
-            ask: () => this.askRemark(),
-            show: line => {
-                const said = this.voice?.utter(line);
-                if (!said)
+            player.setAnimationListener(animation => {
+                // Falling asleep, waking up and sulking all start an animation: what she wears follows at once.
+                this.syncOutfits();
+                outfits.animationChanged(animation);
+            });
+            const behaviour = new IdleBehaviour(player, timers, positioner, settings, {
+                centerX: () => sprite.actor.x + sprite.size / 2,
+                scale: () => sprite.currentScale,
+            }, (event, values) => {
+                // A fact of the past week comes up in place of the day's first idle remark.
+                if (event === 'commentaire' && this.recallFact())
                     return;
-                stats.increment('remarks');
-                this.sayLine(said);
-            },
-        });
-        // The window manager reads the accelerator from the schema and follows its changes on its own.
-        Main.wm.addKeybinding(TALK_SHORTCUT_KEY, settings.gsettings, Meta.KeyBindingFlags.NONE,
-            Shell.ActionMode.NORMAL, () => this.openPrompt());
-        this.shortcutAdded = true;
-        // Settled before she is shown, so starting mid-call does not flash her on screen.
-        this.meeting = new MeetingMonitor(() => this.syncMeeting());
-        this.meetingState = this.currentMeetingMode();
-        behaviour.setQuiet(this.meetingState.silent);
-        this.nudges = new NudgeService(String(this.metadata.version ?? ''), (kind, text) => this.nudge(kind, text),
-            (when, text) => this.remind(when, text));
-        this.scheduleRecapCheck();
-        this.scheduleOutfitCheck();
-        this.applyVisibility();
-        this.syncOutfits();
-        // Last, so the overdue ones find her on stage.
-        this.reminders.start();
+                // Any line may mention the open tickets; the voice decides how often.
+                const tickets = this.behaviour?.recollection.openTickets ?? null;
+                const line = voice.speak(event, tickets === null ? values : {tickets: String(tickets), ...values});
+                if (!line)
+                    return;
+                if (event === 'commentaire')
+                    stats.increment('remarks');
+                this.sayLine(line);
+            });
+            this.behaviour = behaviour;
+            behaviour.setStatsListener(counter => stats.increment(counter));
+            behaviour.setFocusListener(focusing => this.focusChanged(focusing));
+            behaviour.setInkHandler(reason => this.throwInk(reason));
+            const presence = new Presence(sprite, hitbox, positioner, behaviour, settings);
+            this.presence = presence;
+            this.eyes = new EyesFollower(behaviour, timers, {
+                eyes: () => ({
+                    x: sprite.actor.x + sprite.size / 2,
+                    y: sprite.actor.y + (HEAD_PADDING + EYES_BELOW_HEAD) * sprite.currentScale,
+                }),
+                body: () => ({x: hitbox.actor.x, y: hitbox.actor.y, width: hitbox.actor.width, height: hitbox.actor.height}),
+            });
+            this.dodger = new Dodger(sprite, presence, behaviour, positioner, timers, () => behaviour.remark('esquive'));
+            behaviour.setStormHandler({
+                leave: () => {
+                    // The menu and the box follow her; she is not taking questions on the way out.
+                    menu.close();
+                    prompt.close();
+                    return presence.stormOff();
+                },
+                comeBack: onHome => presence.stormBack(onHome),
+            });
+            const prompt = new PromptBox(sprite, {
+                onSubmit: text => this.ask(text),
+                onClosed: () => this.bubble?.setAnchor(null),
+            });
+            this.prompt = prompt;
+
+            const desktopNotifications = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+            this.desktopNotifications = desktopNotifications;
+            const menu = new CrepeMenu(hitbox.actor, settings, {
+                openPreferences: () => this.openPreferences(),
+                toggleHidden: () => presence.toggleHidden(),
+                isHidden: () => presence.isHidden,
+                muteNotifications: () => desktopNotifications.set_boolean('show-banners', false),
+                canConverse: () => settings.brain && this.brain?.available === true,
+                openPrompt: () => this.openPrompt(),
+                forgetConversation: () => this.forgetConversation(),
+                toggleFocus: () => this.toggleFocus(),
+                isFocusing: () => behaviour.focusMode,
+                addReminder: input => this.addReminderFromMenu(input),
+                pendingReminders: () => this.pendingReminderLabels(),
+                cancelReminder: id => this.reminders?.cancel(id),
+            });
+            this.menu = menu;
+            this.drag = new DragHandler(hitbox.actor, sprite.actor, {
+                onClick: () => {
+                    // A click is how she is told a reminder was seen; it is no pestering.
+                    if (this.reminders?.acknowledge()) {
+                        bubble.dismiss();
+                        return;
+                    }
+                    // The sliver of her left at the edge is there to be clicked; out there a click is no pestering.
+                    if (presence.isHidden) {
+                        presence.comeBack();
+                        return;
+                    }
+                    stats.increment('clicks');
+                    behaviour.pester('click');
+                },
+                onSecondaryClick: () => menu.toggle(),
+                onDragStart: () => {
+                    // The menu stays anchored where she was picked up, so it would float in the void.
+                    menu.close();
+                    prompt.close();
+                    bubble.hide();
+                    presence.releaseForDrag();
+                    behaviour.interruptForDrag();
+                },
+                onDrop: () => {
+                    stats.increment('drags');
+                    positioner.rememberPosition();
+                    behaviour.resumeAfterDrag();
+                    behaviour.pester('drag');
+                },
+                bounds: () => positioner.placementArea(),
+            });
+
+            const icon = Gio.FileIcon.new(assetsDir.get_child('reference').get_child('1_sud_face.png'));
+            this.toggle = new CrepeToggle(icon, settings.gsettings);
+
+            // Banners off: the tray still gets every notification, she just stops talking about them.
+            this.bannersHandlerId = desktopNotifications.connect('changed::show-banners', () =>
+                this.syncHush(!this.flippingBannersForFocus));
+
+            const keywordLists = () => ({
+                error: settings.errorKeywords,
+                success: settings.successKeywords,
+                busy: settings.busyKeywords,
+            });
+            // Compiled once per edit of the lists rather than once per notification or title.
+            let keywords = new KeywordMatcher(keywordLists());
+            for (const key of ['error-keywords', 'success-keywords', 'busy-keywords'] as const) {
+                settings.onChanged(key, () => {
+                    keywords = new KeywordMatcher(keywordLists());
+                });
+            }
+
+            const tally = new NotificationTally();
+            this.notifications = new NotificationWatcher(text => {
+                // Counted whether she reacts or not: the recap is about your day, not hers.
+                const keyword = keywords.classify(text);
+                stats.increment('notifications');
+                if (keyword === 'facepalm')
+                    stats.increment('errors');
+                else if (keyword === 'pouce')
+                    stats.increment('successes');
+                // Off-screen she sees nothing; focusing, she lets them go by.
+                if (!settings.reactToNotifications || presence.isAway || behaviour.focusMode || this.meetingState.silent)
+                    return;
+                const flooded = !behaviour.isHushed && tally.add(Date.now());
+                const options: ReactionOptions = flooded ? {event: 'trop_de_notifs'} : {};
+                const reacted = keyword ? this.reactToKeyword(keyword, null, options) : this.jumpAtNotification(options);
+                if (!flooded)
+                    return;
+                // Mid-gesture or right after one, she still makes the offer.
+                if (!reacted)
+                    behaviour.remark('trop_de_notifs');
+                this.offerMute();
+            });
+
+            const longTasks = new LongTasks();
+            this.longTasks = longTasks;
+            this.windows = new FocusedWindowWatcher((title, windowId) => {
+                if (!settings.reactToWindows) {
+                    this.endWait();
+                    return;
+                }
+                const reaction = keywords.classify(title);
+                // "Building... failed" is over, whatever its dots say.
+                this.followWait(windowId, reaction !== 'facepalm' && looksLikeWaiting(title));
+                // Only what she reacted to is counted: a title is seen again every time its window gets focus.
+                if (reaction === 'facepalm') {
+                    longTasks.forget(windowId);
+                    if (this.reactToKeyword('facepalm', errorKey(windowId, title)))
+                        stats.increment('errors');
+                    return;
+                }
+                if (longTasks.update(windowId, keywords.looksBusy(title), Date.now())) {
+                    if (behaviour.react('pouce', {event: 'patience'}))
+                        stats.increment('successes');
+                    return;
+                }
+                if (reaction && this.reactToKeyword(reaction, null))
+                    stats.increment(reaction === 'pouce' ? 'successes' : 'errors');
+            }, () => this.endWait());
+            this.newWindows = new NewWindowWatcher(frame => this.pointAtWindow(frame));
+
+            settings.onChanged('visible', () => this.applyVisibility());
+            settings.onChanged('scale', () => {
+                sprite.setScale(settings.scale * this.themeScale());
+                presence.settle();
+            });
+            settings.onChanged('sleep-after-minutes', () => behaviour.refresh());
+            settings.onChanged('crawl', () => behaviour.refresh());
+            settings.onChanged('crawl-interval-minutes', () => behaviour.refresh());
+            settings.onChanged('comment-interval-minutes', () => behaviour.refresh());
+            settings.onChanged('stats', () => stats.settingChanged());
+            settings.onChanged('hide-during-screencast', () => this.syncMeeting());
+            settings.onChanged('quiet-during-calls', () => this.syncMeeting());
+            settings.onChanged('focus-minutes', () => menu.syncFocus());
+            settings.onChanged('perch', () => presence.refresh());
+            settings.onChanged('eyes-follow', () => this.syncEyes());
+            settings.onChanged('dodge', () => this.syncDodge());
+            settings.onChanged('layer', () => this.syncLayer());
+            settings.onChanged('react-to-music', () => this.syncMusic());
+            settings.onChanged('brain', () => this.syncBrain());
+            settings.onChanged('ink', () => {
+                if (!settings.ink)
+                    this.ink?.clear();
+            });
+            settings.onChanged('outfits', () => this.syncOutfits());
+            settings.onChanged('outfit-override', () => this.syncOutfits());
+            settings.onChanged('birthday', () => this.syncOutfits());
+
+            this.errors = new ErrorHistory();
+            this.ink = new InkSplatter(assetsDir, timers, () => this.themeScale());
+            this.trackGate = new TrackGate(() => this.music?.isPlaying === true);
+            this.reminders = new ReminderCenter({
+                read: () => settings.reminders,
+                write: json => {
+                    settings.reminders = json;
+                },
+                schedule: timers.schedule,
+                now: () => Date.now(),
+                canDeliver: () => this.canDeliverReminder(),
+                deliver: (reminder, kind) => this.deliverReminder(reminder, kind),
+                ignored: () => this.reminderIgnored(),
+                changed: () => this.menu?.syncReminders(),
+            });
+            // Banners may already be off: she starts hushed, without making a show of it.
+            this.syncHush(false);
+            this.syncMusic();
+            this.syncBrain();
+            behaviour.setRemarkSource({
+                ask: () => this.askRemark(),
+                show: line => {
+                    const said = this.voice?.utter(line);
+                    if (!said)
+                        return;
+                    stats.increment('remarks');
+                    this.sayLine(said);
+                },
+            });
+            // The window manager reads the accelerator from the schema and follows its changes on its own.
+            Main.wm.addKeybinding(TALK_SHORTCUT_KEY, settings.gsettings, Meta.KeyBindingFlags.NONE,
+                Shell.ActionMode.NORMAL, () => this.openPrompt());
+            this.shortcutAdded = true;
+            // Settled before she is shown, so starting mid-call does not flash her on screen.
+            this.meeting = new MeetingMonitor(() => this.syncMeeting());
+            this.meetingState = this.currentMeetingMode();
+            behaviour.setQuiet(this.meetingState.silent);
+            this.nudges = new NudgeService(String(this.metadata.version ?? ''), (kind, text) => this.nudge(kind, text),
+                (when, text) => this.remind(when, text));
+            this.scheduleRecapCheck();
+            this.scheduleOutfitCheck();
+            this.applyVisibility();
+            this.syncOutfits();
+            // Last, so the overdue ones find her on stage.
+            this.reminders.start();
+        } catch (error) {
+            this.disable();
+            throw error;
+        }
     }
 
     override disable(): void {
@@ -522,11 +534,9 @@ export default class CrepeExtension extends Extension {
         // Its actors are the sprite's children and go with it; it only drops its images.
         this.outfits?.destroy();
         this.outfits = null;
-        if (this.sprite && this.hitbox) {
-            // It listens to the sprite's position, so it has to go first.
-            this.hitbox.destroy();
-            this.sprite.destroy();
-        }
+        // It listens to the sprite's position, so it has to go first.
+        this.hitbox?.destroy();
+        this.sprite?.destroy();
         this.hitbox = null;
         this.sprite = null;
 
