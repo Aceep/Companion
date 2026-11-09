@@ -4,6 +4,6 @@
   "description": "A bored pixel-art octopus that lives on your desktop and reacts to what you do.",
   "shell-version": ["46"],
   "settings-schema": "org.gnome.shell.extensions.crepe",
-  "url": "https://github.com/Aceep/crepe",
+  "url": "https://github.com/Aceep/Companion",
   "version": 1
 }
