@@ -75,10 +75,10 @@ class UrllibTransport:
             )
             try:
                 with self._opener.open(request, timeout=self.timeout_s) as response:
-                    return HttpResponse(response.status, _lower_headers(response.headers), response.read(MAX_RESPONSE_BYTES))
+                    return HttpResponse(response.status, _lower_headers(response.headers), _read_capped(response, where))
             except urllib.error.HTTPError as error:
                 with error:
-                    return HttpResponse(error.code, _lower_headers(error.headers), error.read(MAX_RESPONSE_BYTES))
+                    return HttpResponse(error.code, _lower_headers(error.headers), _read_capped(error, where))
         except urllib.error.URLError as error:
             raise WatcherError(f"cannot reach {where}: {error.reason}") from None
         except (TimeoutError, OSError) as error:
@@ -90,7 +90,7 @@ class UrllibTransport:
         try:
             request = urllib.request.Request(url, headers={**headers, "User-Agent": f"crepe-daemon/{VERSION}"})
             with self._opener.open(request, timeout=self.timeout_s) as response:
-                body = response.read(MAX_RESPONSE_BYTES + 1)
+                return _read_capped(response, where)
         except urllib.error.HTTPError as error:
             raise WatcherError(f"HTTP {error.code} from {where}") from None
         except urllib.error.URLError as error:
@@ -100,9 +100,6 @@ class UrllibTransport:
         except (ValueError, http.client.HTTPException) as error:
             # Their messages can quote the whole URL, so only the type is kept.
             raise WatcherError(f"bad URL or response from {where} ({type(error).__name__})") from None
-        if len(body) > MAX_RESPONSE_BYTES:
-            raise WatcherError(f"response from {where} is too large")
-        return body
 
 
 def build_url(base: str, path: str, params: dict[str, object] | None = None) -> str:
@@ -110,6 +107,14 @@ def build_url(base: str, path: str, params: dict[str, object] | None = None) -> 
     if params:
         url += "?" + urllib.parse.urlencode(params, safe=":")
     return url
+
+
+def _read_capped(response, where: str) -> bytes:
+    # One byte more than allowed tells a body that fits from one that was cut.
+    body = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise WatcherError(f"response from {where} is too large")
+    return body
 
 
 def _describe(url: str) -> str:

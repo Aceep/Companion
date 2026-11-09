@@ -175,22 +175,27 @@ class Watcher:
     def _complete(self, outcome: object) -> None:
         if self._stopped:
             return
-        if isinstance(outcome, Exception):
-            self._failures += 1
-            log.warning(
-                "%s: look failed (%d in a row), next in %s s: %s",
-                self.name,
-                self._failures,
-                round(self.current_interval_s),
-                outcome,
-            )
-        else:
-            if self._failures:
-                log.info("%s: back to normal after %d failures", self.name, self._failures)
-            self._failures = 0
-            for kind, text in outcome:
-                self._nudge(kind, text)
-        self._schedule(self.current_interval_s, self._on_timer)
+        try:
+            if isinstance(outcome, Exception):
+                self._failures += 1
+                log.warning(
+                    "%s: look failed (%d in a row), next in %s s: %s",
+                    self.name,
+                    self._failures,
+                    round(self.current_interval_s),
+                    outcome,
+                )
+            else:
+                if self._failures:
+                    log.info("%s: back to normal after %d failures", self.name, self._failures)
+                self._failures = 0
+                for kind, text in outcome:
+                    self._nudge(kind, text)
+        except Exception:
+            # The look itself went fine; a sender that raises must not stop the watcher for good.
+            log.exception("%s: sending the nudges failed", self.name)
+        finally:
+            self._schedule(self.current_interval_s, self._on_timer)
 
 
 class WatcherPool:

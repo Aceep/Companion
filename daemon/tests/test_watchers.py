@@ -1,11 +1,14 @@
+import io
 import json
 import os
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
 from crepe_daemon.watchers import StateStore, Watcher, WatcherError
+from crepe_daemon.watchers.http import MAX_RESPONSE_BYTES, UrllibTransport
 
 
 class StubWatcher(Watcher):
@@ -97,6 +100,11 @@ class BackoffTest(StateDirTestCase):
         watcher.start(run_now, schedule=scheduler)
         return watcher, scheduler
 
+    def failing_then_recording_nudge(self, kind: str, text: str) -> None:
+        if text == "a":
+            raise RuntimeError("bus gone")
+        self.record_nudge(kind, text)
+
     def test_first_look_waits_thirty_seconds(self):
         _watcher, scheduler = self.make_running([])
         self.assertEqual(scheduler.delays, [30])
@@ -132,11 +140,58 @@ class BackoffTest(StateDirTestCase):
         scheduler.fire()
         self.assertEqual(self.nudges, [("agenda", "Point dans 5 min")])
 
+    def test_raising_sender_does_not_stop_the_watcher(self):
+        watcher = StubWatcher([[("agenda", "a")], [("agenda", "b")]], nudge=self.failing_then_recording_nudge)
+        scheduler = FakeScheduler()
+        watcher.start(run_now, schedule=scheduler)
+        with self.assertLogs("crepe_daemon.watchers.base", level="ERROR"):
+            scheduler.fire()
+        scheduler.fire()
+        self.assertEqual(scheduler.delays, [30, 300, 300])
+        self.assertEqual(self.nudges, [("agenda", "b")])
+
     def test_stopped_watcher_schedules_nothing_more(self):
         watcher, scheduler = self.make_running([])
         watcher.stop()
         scheduler.fire()
         self.assertEqual(scheduler.delays, [30])
+
+
+class UrllibTransportTest(unittest.TestCase):
+    URL = "https://api.example.com/v1/thing"
+
+    def answer(self, body: bytes):
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.status = 200
+        response.headers = {}
+        response.read.side_effect = lambda limit: body[:limit]
+        return response
+
+    def test_request_refuses_a_body_over_the_cap(self):
+        transport = UrllibTransport()
+        with mock.patch.object(transport._opener, "open", return_value=self.answer(b"x" * (MAX_RESPONSE_BYTES + 1))):
+            with self.assertRaisesRegex(WatcherError, "response from api.example.com/v1/thing is too large"):
+                transport.request("GET", self.URL, {})
+
+    def test_request_keeps_a_body_at_the_cap(self):
+        transport = UrllibTransport()
+        with mock.patch.object(transport._opener, "open", return_value=self.answer(b"x" * MAX_RESPONSE_BYTES)):
+            self.assertEqual(len(transport.request("GET", self.URL, {}).body), MAX_RESPONSE_BYTES)
+
+    def test_request_refuses_an_error_body_over_the_cap(self):
+        transport = UrllibTransport()
+        body = io.BytesIO(b"x" * (MAX_RESPONSE_BYTES + 1))
+        error = urllib.error.HTTPError(self.URL, 500, "Server Error", {}, body)
+        with mock.patch.object(transport._opener, "open", side_effect=error):
+            with self.assertRaisesRegex(WatcherError, "too large"):
+                transport.request("GET", self.URL, {})
+
+    def test_get_text_refuses_a_body_over_the_cap(self):
+        transport = UrllibTransport()
+        with mock.patch.object(transport._opener, "open", return_value=self.answer(b"x" * (MAX_RESPONSE_BYTES + 1))):
+            with self.assertRaisesRegex(WatcherError, "response from api.example.com is too large"):
+                transport.get_text(self.URL, {})
 
 
 class StateStoreTest(StateDirTestCase):
