@@ -6,6 +6,9 @@ come back. Built as a GNOME Shell extension so she can see what happens on
 screen (notifications, focused window, pointer, idle time), which a regular
 window cannot do under Wayland.
 
+Who she is, and the questions any new idea has to pass, are in
+[MANIFESTE.md](MANIFESTE.md).
+
 Sprites and animation timings come from Theo's `pieuvre_animations.zip`
 and are kept verbatim in `assets/`. See his brief for the style rules and
 the PixelLab recipe for new animations.
