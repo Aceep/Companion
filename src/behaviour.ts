@@ -284,6 +284,11 @@ export class IdleBehaviour implements GazeHolder {
         return this.asleep;
     }
 
+    /** Someone is at the desk: the idle time is short of what puts her to sleep. */
+    get isUserActive(): boolean {
+        return this.idleMonitor.get_idletime() < this.settings.sleepAfterMs;
+    }
+
     /** Bat in hand, or off the screen in a fury. */
     get isSulking(): boolean {
         return this.mood.isSulking;

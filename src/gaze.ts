@@ -69,7 +69,8 @@ export interface GazeTarget {
  * Her eyes follow the pointer while she rests: polled, since a shell actor
  * sees no motion over other windows. Close to her, or left alone for a few
  * seconds, the pointer gets a straight look. Not running at all unless
- * started, so turning it off costs nothing.
+ * started, so turning it off costs nothing. Something she was shown
+ * (`lookAt()`) holds her eyes for a while, polling or not.
  */
 export class EyesFollower {
     private readonly holder: GazeHolder;
@@ -79,6 +80,9 @@ export class EyesFollower {
     private lastX = Number.NaN;
     private lastY = Number.NaN;
     private movedAt = 0;
+    /** Where `lookAt()` keeps her eyes until `cancelHold` runs out. */
+    private heldDirection: GazeDirection | null = null;
+    private cancelHold: (() => void) | null = null;
 
     constructor(holder: GazeHolder, timers: TimerPool, target: GazeTarget) {
         this.holder = holder;
@@ -99,9 +103,32 @@ export class EyesFollower {
     stop(): void {
         this.cancelPoll?.();
         this.cancelPoll = null;
+        this.cancelHold?.();
+        this.cancelHold = null;
+        this.heldDirection = null;
         this.lastX = Number.NaN;
         this.lastY = Number.NaN;
         this.holder.lookTowards(null);
+    }
+
+    /**
+     * Looks towards `point`, in stage pixels, for `forMs`, whatever the
+     * pointer does; then back to following it, or straight ahead when her
+     * eyes do not follow it. Shown at once if she is resting.
+     */
+    lookAt(point: {x: number; y: number}, forMs: number): void {
+        const eyes = this.target.eyes();
+        this.heldDirection = gazeTowards(point.x - eyes.x, point.y - eyes.y);
+        this.cancelHold?.();
+        this.cancelHold = this.timers.schedule(forMs, () => {
+            this.cancelHold = null;
+            this.heldDirection = null;
+            // Polling, the next look turns them; otherwise nobody else would.
+            if (!this.isFollowing)
+                this.holder.lookTowards(null);
+        });
+        if (this.holder.canFollowPointer)
+            this.holder.lookTowards(this.heldDirection);
     }
 
     private poll(): void {
@@ -120,7 +147,15 @@ export class EyesFollower {
             this.lastY = y;
             this.movedAt = now;
         }
-        if (!this.holder.canFollowPointer || now - this.movedAt >= STILL_AFTER || this.isClose(x, y)) {
+        if (!this.holder.canFollowPointer) {
+            this.holder.lookTowards(null);
+            return;
+        }
+        if (this.heldDirection !== null) {
+            this.holder.lookTowards(this.heldDirection);
+            return;
+        }
+        if (now - this.movedAt >= STILL_AFTER || this.isClose(x, y)) {
             this.holder.lookTowards(null);
             return;
         }

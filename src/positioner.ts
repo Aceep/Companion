@@ -78,6 +78,38 @@ export class Positioner {
         return this.house()?.roomOf(this.position)?.index ?? null;
     }
 
+    /** The monitor index of the room her remembered spot is in: hers, or the primary while hers is unplugged. */
+    get homeRoomIndex(): number | null {
+        const house = this.house();
+        return (house?.roomInDirection(this.settings.homeMonitor) ?? house?.primary)?.index ?? null;
+    }
+
+    /** Whether that monitor is still plugged in. */
+    hasRoom(index: number): boolean {
+        const house = this.house();
+        return house !== null && house.roomByIndex(index) !== null;
+    }
+
+    /** Her top-left corner's y on that monitor at the height of her remembered spot, or null if it is gone. */
+    rowIn(index: number): number | null {
+        const house = this.house();
+        const room = house?.roomByIndex(index) ?? null;
+        if (!house || !room)
+            return null;
+        const bounds = house.bounds(room);
+        return bounds.minY + this.settings.fractionY * (bounds.maxY - bounds.minY);
+    }
+
+    /** Snaps her back inside the work area of the room she is in, wherever she was left; the remembered spot stays. */
+    keepInsideRoom(): void {
+        const house = this.house();
+        const room = house?.roomOf(this.position) ?? null;
+        if (!house || !room)
+            return;
+        const inside = house.clampInto(this.position, room);
+        this.sprite.actor.set_position(inside.x, inside.y);
+    }
+
     /** Whether her top-left corner may sit at `point` without being snapped back inside a work area. */
     isInsideArea(point: Point): boolean {
         return this.house()?.isInside(point) ?? false;

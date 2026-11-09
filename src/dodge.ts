@@ -17,7 +17,7 @@ const DODGE_EVERY = 10 * 1000;
 /** Mid-crawl she is in nobody's way for long; she looks again this often until she stops. */
 const CRAWL_RECHECK = 1000;
 /** Share of her frame over the window past which she is in the way. */
-const OVERLAP_LIMIT = 0.25;
+export const OVERLAP_LIMIT = 0.25;
 
 /** Share of `own`'s area that `other` covers. */
 export function overlapRatio(own: Rect, other: Rect): number {
@@ -44,8 +44,8 @@ export function freeSpotOnRow(x: number, size: number, window: Rect, minX: numbe
  * On top of every window, she can sit right over what you are working on.
  * When the focused window comes under her, she crawls aside along her row,
  * or to the bottom-right corner when the window takes the whole row, both
- * in the room she is in, and back to her spot a little after the window
- * has lost focus or moved off it. A window on another monitor is not in
+ * in the room she is in, and back to her spot (or her place on a visit) a
+ * little after the window has lost focus or moved off it. A window on another monitor is not in
  * her way. Carried somewhere meanwhile, that is her spot now and there is
  * nothing to go back to. The first time a window sends her aside she may
  * say so.
@@ -171,7 +171,7 @@ export class Dodger {
             return;
         }
         this.cornered = false;
-        if (frame && overlapRatio(this.frameAt(this.positioner.position), frame) > OVERLAP_LIMIT && this.presence.isHome)
+        if (frame && overlapRatio(this.frameAt(this.positioner.position), frame) > OVERLAP_LIMIT && this.presence.isSettled)
             this.dodge(frame);
     }
 

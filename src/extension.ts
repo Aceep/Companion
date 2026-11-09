@@ -42,6 +42,7 @@ import {TimerPool} from './timers.js';
 import {TrackGate} from './tracks.js';
 import {CrepeToggle} from './toggle.js';
 import {ErrorHistory, LongTasks, NotificationTally, errorKey} from './trackers.js';
+import {Visits} from './visits.js';
 import {Voice, inClear, type TriggerEvent, type Utterance} from './voice.js';
 import {OUTFIT_LINES, activeOutfits, outfitsOwingALine, parseLineDays, type OutfitId} from './wardrobe.js';
 import {FocusedWindowWatcher, NewWindowWatcher, NotificationWatcher} from './watchers.js';
@@ -95,6 +96,7 @@ export default class CrepeExtension extends Extension {
     private layer: SpriteLayer | null = null;
     private eyes: EyesFollower | null = null;
     private dodger: Dodger | null = null;
+    private visits: Visits | null = null;
     private bubble: SpeechBubble | null = null;
     private voice: Voice | null = null;
     private positioner: Positioner | null = null;
@@ -235,6 +237,8 @@ export default class CrepeExtension extends Extension {
                 body: () => ({x: hitbox.actor.x, y: hitbox.actor.y, width: hitbox.actor.width, height: hitbox.actor.height}),
             });
             this.dodger = new Dodger(sprite, presence, behaviour, positioner, timers, () => behaviour.remark('esquive'));
+            this.visits = new Visits(sprite, presence, behaviour, positioner, this.eyes, timers,
+                () => this.meetingState.silent || this.meetingState.hidden);
             behaviour.setStormHandler({
                 leave: () => {
                     // The menu and the box follow her; she is not taking questions on the way out.
@@ -368,7 +372,7 @@ export default class CrepeExtension extends Extension {
                 if (reaction && this.reactToKeyword(reaction, null))
                     stats.increment(reaction === 'pouce' ? 'successes' : 'errors');
             }, () => this.endWait());
-            this.newWindows = new NewWindowWatcher(frame => this.pointAtWindow(frame));
+            this.newWindows = new NewWindowWatcher(frame => this.pointAtWindow(frame), () => positioner.roomIndex);
 
             settings.onChanged('visible', () => this.applyVisibility());
             settings.onChanged('scale', () => this.rescale());
@@ -514,11 +518,13 @@ export default class CrepeExtension extends Extension {
         this.menu?.destroy();
         this.menu = null;
 
-        // Both talk to the behaviour and the presence, so they go first.
+        // They all talk to the behaviour and the presence, so they go first.
         this.eyes?.stop();
         this.eyes = null;
         this.dodger?.stop();
         this.dodger = null;
+        this.visits?.stop();
+        this.visits = null;
 
         // Disabled mid-crawl (a logout), she stays where she stopped and that is her spot next time,
         // rather than being snapped back to where the crawl began. A trip she was sent on is not
@@ -583,6 +589,7 @@ export default class CrepeExtension extends Extension {
             this.presence.start();
             this.syncEyes();
             this.syncDodge();
+            this.visits?.sync(true);
             return;
         }
         this.prompt?.close();
@@ -591,6 +598,7 @@ export default class CrepeExtension extends Extension {
         this.ink?.clear();
         this.syncEyes();
         this.syncDodge();
+        this.visits?.sync(false);
         // Hidden for good means back home: showing her again should not find her off-screen.
         this.presence.stop();
         this.behaviour.stop();

@@ -645,6 +645,14 @@
     "Bon, je me décale.",
     "Pas de place pour une pieuvre, je vois."
   ],
+  "curieuse": [
+    "Il se passe quoi, ici ?",
+    "Tu m'avais pas dit qu'il y avait une autre pièce.",
+    "Je passais.",
+    "Alors c'est ici que tu travailles.",
+    "Je viens voir. Fais comme si j'étais pas là.",
+    "C'est moins bien rangé que chez moi."
+  ],
   "bilan": [
     "Bilan : {notifs} notifs, {erreurs} erreurs. Journée normale, donc.",
     "Aujourd'hui : {notifs} notifs, {succes} succès. On prend.",

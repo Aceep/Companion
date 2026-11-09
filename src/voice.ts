@@ -53,6 +53,7 @@ export const VOICE_EVENTS = [
     'reunion_fin_resume',
     'reunion_fin_rien',
     'esquive',
+    'curieuse',
     'bilan',
     'tenue_fete',
     'tenue_vendredi',
@@ -152,6 +153,8 @@ const PROBABILITY: Record<TriggerEvent, number> = {
     reunion_fin_rien: 1.0,
     // Moving out of the way is the point; saying so every time would be the opposite.
     esquive: 1 / 3,
+    // Going to look is the gesture; a word every time would make a show of it.
+    curieuse: 1 / 3,
     // Once a day at most per outfit already: when it comes, it is said.
     tenue_fete: 1.0,
     tenue_vendredi: 1.0,

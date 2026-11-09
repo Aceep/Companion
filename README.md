@@ -102,8 +102,8 @@ gnome-extensions prefs crepe@aceep.github.io
   tentacle, over and over, until the title moves on or focus does.
   Interrupted meanwhile (carried, asleep, sent somewhere, sulking), she
   gets back to it once she is free again, while the title still waits.
-- A new window opening clearly to one side of her may get pointed at,
-  silently, once a minute at most.
+- A new window opening clearly to one side of her, in the room she is
+  in, may get pointed at, silently, once a minute at most.
 - A window title that says it is busy (`building`, `npm run`, `cargo`,
   `pytest`, `chargement`...; the list is a setting) for two minutes or
   more, then stops saying it, earns a thumbs up and a remark about
@@ -273,6 +273,23 @@ gnome-extensions prefs crepe@aceep.github.io
   her way back. A change of the desktop's scale, of the monitors or of
   their work area (a panel or a dock coming or going) puts her back at
   her spot within the new bounds.
+- A window in another room does not exist for her, until you have worked
+  in that room for two minutes in a row (focus moving between its
+  windows included) while at the desk. Then she goes to see: she
+  crawls there, room to room, to her usual height on that monitor, under
+  the focused window's middle if that leaves her out of its way,
+  otherwise just beside it, and looks at it; one time in three she says
+  so (`curieuse`). With "Perches on the focused window" on, she goes on
+  to its title bar. Over there, that room is hers for everything: her
+  strolls, getting out of a window's way, perching, the windows she
+  points at. Her spot does not move (a visit is not a move; a drop is,
+  as ever): once the focus has been back in her own room, or on the
+  desktop, for three minutes in a row, she crawls back to it. One visit
+  every 10 minutes at most, and none while she is out of a window's way,
+  perched, hiding, storming off, sulking, focusing, in a meeting,
+  asleep, carried or crawling. Picked up, sent to hide, storming off or
+  toggled off, the visit is over; the room she went to see unplugged, she
+  heads home.
 
 ## Tenues
 
@@ -520,7 +537,9 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/positioner.ts` | Keeps her inside a monitor's work area at a remembered spot, moves her sideways from monitor to monitor, off-screen past a wall or anywhere for trips |
 | `src/monitors.ts` | The monitors as rooms of one home: which room a point is in, which edges touch and which are walls, where a room is from the primary, crawl routes and stroll destinations. No GNOME dependency |
 | `src/geometry.ts` | The point and rectangle shapes the pure modules share |
-| `src/presence.ts` | Where she is when not at her spot: hiding off-screen, storming off, perched on the focused window, out of its way. Drives the trips there and back |
+| `src/presence.ts` | Where she is when not at her spot: hiding off-screen, storming off, perched on the focused window, out of its way, visiting another room. Drives the trips there and back |
+| `src/curiosity.ts` | When she goes to see the room you work in and when she comes back. No GNOME dependency |
+| `src/visits.ts` | Visits to another room: where the focus is, where she goes on arrival, and the way back |
 | `src/drag.ts` | Click versus drag on the hitbox, pointer grab while she is carried |
 | `src/menu.ts` | Right-click menu: preferences, focus session, crawl and talk switches, off-screen and hide entries, temporary mute offer, conversation entries |
 | `src/behaviour.ts` | Blinks, rare fidgets, crawling, sleep on idle and at bedtime, wave on return, reactions, impatient tapping, hush, pestering, break reminder, focus sessions, trips she is sent on, events worth a line |

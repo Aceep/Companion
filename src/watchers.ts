@@ -9,15 +9,20 @@ export type TextListener = (text: string) => void;
 /** `windowId` tells windows apart, so a task followed in one title is not ended by another. */
 export type TitleListener = (title: string, windowId: number) => void;
 
-/** Calls `listener` once per normal window opened on the primary monitor, when it first shows, with its frame. */
+/**
+ * Calls `listener` once per normal window opened in the room she is in,
+ * `roomIndex` being its monitor, when it first shows, with its frame.
+ */
 export class NewWindowWatcher {
     private readonly listener: (frame: Mtk.Rectangle) => void;
+    private readonly roomIndex: () => number | null;
     private readonly createdHandlerId: number;
     /** Windows still waiting for their first frame, with the handlers to drop if it never comes. */
     private readonly pending = new Map<Meta.WindowActor, number[]>();
 
-    constructor(listener: (frame: Mtk.Rectangle) => void) {
+    constructor(listener: (frame: Mtk.Rectangle) => void, roomIndex: () => number | null) {
         this.listener = listener;
+        this.roomIndex = roomIndex;
         this.createdHandlerId = global.display.connect('window-created',
             (_display: Meta.Display, window: Meta.Window) => this.watch(window));
     }
@@ -54,7 +59,8 @@ export class NewWindowWatcher {
     }
 
     private report(window: Meta.Window): void {
-        if (window.get_monitor() === Main.layoutManager.primaryIndex)
+        // A window in another room is out of her sight.
+        if (window.get_monitor() === this.roomIndex())
             this.listener(window.get_frame_rect());
     }
 }

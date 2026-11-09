@@ -15,17 +15,20 @@ const ERRAND_SPEED = 40;
 
 /**
  * home: at her remembered spot, or crawling back to it from a window.
+ * visiting: gone to see another room, on her way there or settled in it.
  * perched: on the focused window's title bar, or on her way there.
  * dodged: out of the focused window's way on her row, or on her way there.
  * leaving, away, returning: hiding at the edge of the screen, a sliver of her
  * still showing, or on the way there or back. Storming off in a fury goes
  * through the same states with nothing of her left showing.
  */
-type State = 'home' | 'perched' | 'dodged' | 'leaving' | 'away' | 'returning';
+type State = 'home' | 'visiting' | 'perched' | 'dodged' | 'leaving' | 'away' | 'returning';
 
 /**
  * Where Crêpe is when it is not her own spot: hiding off-screen, sitting
- * on the focused window's title bar, or out of that window's way. The trips go through the
+ * on the focused window's title bar, out of that window's way, or on a
+ * visit to another room, which perching and dodging there keep going
+ * until she is sent home. The trips go through the
  * behaviour, so she crawls and her routine steps aside, and through the
  * positioner, detached so they never overwrite her remembered spot.
  */
@@ -48,6 +51,13 @@ export class Presence {
     private perchHandlerIds: number[] = [];
     /** Her room was unplugged at the last look: when it is back, she crawls there. */
     private homeMissing: boolean;
+    /**
+     * The monitor she went to see, while the visit lasts, whether she is
+     * on its floor, perched there or out of a window's way there; null at home.
+     */
+    private visitedRoom: number | null = null;
+    /** Out of a window's way on a visit: where she stood, to go back to instead of home. */
+    private dodgedFrom: Point | null = null;
 
     constructor(sprite: CrepeSprite, hitbox: Hitbox, positioner: Positioner, behaviour: IdleBehaviour, settings: CrepeSettings) {
         this.sprite = sprite;
@@ -77,6 +87,16 @@ export class Presence {
         return this.state === 'home' && !this.travelling;
     }
 
+    /** At her own spot or settled on a visit, on the floor, no trip under way: free to move aside or go somewhere. */
+    get isSettled(): boolean {
+        return (this.state === 'home' || this.state === 'visiting') && !this.travelling;
+    }
+
+    /** Gone to see another room and not sent home yet, perched or out of a window's way there included. */
+    get isVisiting(): boolean {
+        return this.visitedRoom !== null;
+    }
+
     get isPerched(): boolean {
         return this.state === 'perched';
     }
@@ -86,9 +106,9 @@ export class Presence {
         return this.state === 'dodged';
     }
 
-    /** Her spot, which she left to get out of a window's way; null when she is not out of one's way. */
+    /** Where she left to get out of a window's way, her spot or her place on a visit; null when she is not out of one's way. */
     get dodgeOrigin(): Point | null {
-        return this.state === 'dodged' ? this.positioner.homePosition() : null;
+        return this.state === 'dodged' ? this.dodgedFrom ?? this.positioner.homePosition() : null;
     }
 
     /** Stormed off in a fury: neither the menu, a click nor the shortcut brings her back. */
@@ -105,6 +125,7 @@ export class Presence {
     stop(): void {
         this.unfollowFocus();
         this.releaseWindow();
+        this.endVisitHere();
         this.state = 'home';
         this.storming = false;
         this.showAndReach(true);
@@ -205,6 +226,8 @@ export class Presence {
         });
         if (started) {
             this.releaseWindow();
+            // Back from the wall she goes home: whatever she was visiting is behind her.
+            this.endVisitHere();
             return true;
         }
         this.state = previous;
@@ -232,13 +255,15 @@ export class Presence {
 
     /**
      * Crawls to `spot` to get out of the focused window's way, from her
-     * spot or from where she already dodged to; her spot stays hers, for
-     * `undodge()`. No crawls of her own meanwhile: they would land her
-     * anywhere, back under the window included. False when she could not set off.
+     * spot, from her place on a visit or from where she already dodged
+     * to; where she left stays hers, for `undodge()`. No crawls of her own
+     * meanwhile: they would land her anywhere, back under the window
+     * included. False when she could not set off.
      */
     dodge(spot: Point): boolean {
-        if (this.state !== 'home' && this.state !== 'dodged')
+        if (this.state !== 'home' && this.state !== 'visiting' && this.state !== 'dodged')
             return false;
+        const here = this.positioner.position;
         this.positioner.detach();
         const started = this.errand(spot.x > this.sprite.actor.x, done =>
             this.positioner.travelTo(spot, this.speed(), done), () => {});
@@ -247,6 +272,8 @@ export class Presence {
                 this.positioner.attach();
             return false;
         }
+        if (this.state === 'visiting')
+            this.dodgedFrom = here;
         this.state = 'dodged';
         this.behaviour.allowCrawling(false);
         return true;
@@ -254,16 +281,21 @@ export class Presence {
 
     /**
      * Back to her remembered spot, the one `attach()` puts her on, so the
-     * trip ends where she stands instead of with a jump; `onHome` once there.
+     * trip ends where she stands instead of with a jump; or, out of a
+     * window's way on a visit, back to where she stood on it. `onHome` once there.
      */
     undodge(onHome: () => void = () => {}): void {
         if (this.state !== 'dodged')
             return;
-        const back = this.positioner.homePosition();
-        this.state = 'home';
+        const visitSpot = this.dodgedFrom;
+        const back = visitSpot ?? this.positioner.homePosition();
+        this.dodgedFrom = null;
+        this.state = visitSpot ? 'visiting' : 'home';
         this.behaviour.allowCrawling(true);
         const arrive = () => {
-            this.positioner.attach();
+            // Still on the visit: her spot is not where she stands.
+            if (!visitSpot)
+                this.positioner.attach();
             onHome();
         };
         if (!back) {
@@ -274,10 +306,58 @@ export class Presence {
             arrive();
     }
 
+    /**
+     * Off to see another room: crawls to `spot` on monitor `room`, room to
+     * room, her spot left as it is; `onArrived` once there. Settled there,
+     * that room is the one she is in for everything, perching included,
+     * until `endVisit()`. Only from home. False when she could not set off.
+     */
+    visit(spot: Point, room: number, onArrived: () => void): boolean {
+        if (!this.isHome)
+            return false;
+        this.positioner.detach();
+        const started = this.errand(spot.x > this.sprite.actor.x, done =>
+            this.positioner.travelTo(spot, this.speed(), done), () => {
+            onArrived();
+            // In the window's room now: with the perch on, its title bar is where the visit ends.
+            if (this.focusHandlerId !== null)
+                this.onFocusChanged();
+        });
+        if (!started) {
+            this.positioner.attach();
+            return false;
+        }
+        this.state = 'visiting';
+        this.visitedRoom = room;
+        return true;
+    }
+
+    /**
+     * Home from a visit, from wherever in the visited room she is: its
+     * floor, a window's title bar or out of a window's way. A visit is not
+     * a move, so her spot is where it was. False when she is on no visit
+     * or cannot set off (asleep, carried).
+     */
+    endVisit(): boolean {
+        const home = this.positioner.homePosition();
+        if (this.visitedRoom === null || !home)
+            return false;
+        const started = this.errand(home.x > this.sprite.actor.x, done =>
+            this.positioner.travelTo(home, this.speed(), done), () => this.positioner.attach());
+        if (!started)
+            return false;
+        this.releaseWindow();
+        this.endVisitHere();
+        this.state = 'home';
+        this.behaviour.allowCrawling(true);
+        return true;
+    }
+
     /** She is picked up: whatever trip or perch she was on is over, and where she is dropped is her spot. */
     releaseForDrag(): void {
         const wasAway = this.isAway;
         this.releaseWindow();
+        this.endVisitHere();
         this.travelling = false;
         this.state = 'home';
         this.behaviour.allowCrawling(true);
@@ -291,6 +371,11 @@ export class Presence {
      * crawls back to it from the primary rather than jumping there.
      */
     settle(): void {
+        // The room she went to see is unplugged: nothing left to visit, wherever she is on the way.
+        if (this.visitedRoom !== null && !this.positioner.hasRoom(this.visitedRoom)) {
+            this.cancelVisit();
+            return;
+        }
         // A trip in progress ends where it was headed; a perch trip snaps to the window on arrival.
         // Her own crawl too: snapping her home mid-way would cut its slide, and with it the end of the crawl.
         // Her room coming back meanwhile is noticed at the next settle.
@@ -308,6 +393,10 @@ export class Presence {
             break;
         case 'perched':
             this.snapToPerch();
+            break;
+        case 'visiting':
+            // Not at her spot, so not put back there: only kept inside the room, whose work area may have shrunk.
+            this.positioner.keepInsideRoom();
             break;
         default:
             this.positioner.place();
@@ -330,6 +419,23 @@ export class Presence {
         // Carried, the drop decides where she lives and gives her spot back; asleep or not shown, she is put there.
         if (!started && !this.behaviour.isDragging)
             this.positioner.attach();
+    }
+
+    /** The visit is over at once: home by a trip, or put there when she cannot set off. */
+    private cancelVisit(): void {
+        if (this.endVisit())
+            return;
+        this.releaseWindow();
+        this.endVisitHere();
+        this.state = 'home';
+        this.behaviour.allowCrawling(true);
+        this.positioner.attach();
+    }
+
+    /** Forgets the visit without moving her: whoever ends it says where she goes. */
+    private endVisitHere(): void {
+        this.visitedRoom = null;
+        this.dodgedFrom = null;
     }
 
     private arriveHome(onHome: () => void): void {
@@ -409,6 +515,8 @@ export class Presence {
         if (this.state !== 'perched')
             return;
         this.releaseWindow();
+        // Perched at the end of a visit, off the window is home too.
+        this.endVisitHere();
         this.state = 'home';
         this.behaviour.allowCrawling(true);
         const home = this.positioner.homePosition();
