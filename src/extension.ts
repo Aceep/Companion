@@ -161,7 +161,7 @@ export default class CrepeExtension extends Extension {
         const assetsDir = this.dir.get_child('assets');
         // Every asset is read and checked before anything reaches the stage or listens to a signal: a bad
         // JSON file then fails the enable with nothing to clean up.
-        const animations = loadAnimations(assetsDir);
+        const {animations} = loadAnimations(assetsDir);
         const outfitCatalog = loadOutfits(assetsDir, animations.keys());
         const voice = new Voice(settings, () => this.bubble?.isShowing === true);
         voice.loadLines(assetsDir);
@@ -878,14 +878,15 @@ export default class CrepeExtension extends Extension {
         const {settings, behaviour, outfits} = this;
         if (!settings || !behaviour || !outfits)
             return;
-        const worn = activeOutfits(this.outfitClock(), {
+        // Only what the pack draws: the rules may name a hat this pack has no picture of.
+        const worn = outfits.available(activeOutfits(this.outfitClock(), {
             isAsleep: behaviour.isAsleep,
             isSulking: behaviour.isSulking,
         }, {
             enabled: settings.outfits,
             override: settings.outfitOverride,
             birthday: settings.birthday,
-        });
+        }));
         const previous = outfits.wearing;
         if (worn.size === previous.size && [...worn].every(id => previous.has(id)))
             return;

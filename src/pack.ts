@@ -210,9 +210,11 @@ export function reviewAnimations(names: Iterable<string>): AnimationReview {
     }
 
     const missing = KNOWN_ANIMATIONS.filter(name => !present.has(name));
-    const gesturesMissing = missing.filter(name => (OPTIONAL_GESTURES as readonly string[]).includes(name));
+    const gesturesMissing = missing.filter(name => (OPTIONAL_GESTURES as readonly string[]).includes(name) && name !== 'tapote');
     if (gesturesMissing.length > 0)
         notes.push(`Sans ${gesturesMissing.map(name => `« ${name} »`).join(', ')} : pas de geste, la réplique seule.`);
+    if (missing.includes('tapote'))
+        notes.push('Sans « tapote » : pas d\'impatience devant un chargement qui traîne.');
     if (MENACE_GROUP.every(name => missing.includes(name)))
         notes.push('Sans « menace » : elle boude en pose d\'attente.');
     for (const [restPose, prefix] of EYE_POSE_GROUPS) {

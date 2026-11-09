@@ -46,12 +46,20 @@ export class InkSplatter {
         this.timers = timers;
         this.themeScale = themeScale;
         const directory = assetsDir.get_child('encre');
-        this.images = VARIANT_SIZES.map((_size, variant) => {
-            const path = directory.get_child(`encre_${variant}.png`).get_path();
-            if (path === null)
-                throw new Error(`no path for ink splat ${variant}`);
-            return imageOf(decodePixbuf(path, false));
-        });
+        // A pack without the drawings has no ink to spit: `splash` then brings none.
+        this.images = directory.query_exists(null)
+            ? VARIANT_SIZES.map((_size, variant) => {
+                const path = directory.get_child(`encre_${variant}.png`).get_path();
+                if (path === null)
+                    throw new Error(`no path for ink splat ${variant}`);
+                return imageOf(decodePixbuf(path, false));
+            })
+            : [];
+    }
+
+    /** Whether the pack drew any ink. */
+    get hasInk(): boolean {
+        return this.images.length > 0;
     }
 
     get count(): number {
@@ -65,7 +73,7 @@ export class InkSplatter {
      */
     splash(count: number, area: Rect, avoid: readonly Rect[], below: Clutter.Actor | null): number {
         const room = Math.min(count, MAX_SPLATS - this.splats.size);
-        if (room <= 0)
+        if (room <= 0 || !this.hasInk)
             return 0;
         const factor = INK_SCALE * this.themeScale();
         const sizes = VARIANT_SIZES.map(size => size * factor);
