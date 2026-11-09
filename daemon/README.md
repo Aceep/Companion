@@ -19,7 +19,8 @@ scripts/install-daemon.sh            # install, then enable and start the user u
 scripts/install-daemon.sh --no-enable  # install only
 ```
 
-The script is idempotent; run it again after changing the daemon. It:
+The script is idempotent; run it again after changing the daemon. It stops
+at once if `python3` (or an existing venv) is older than 3.11. It:
 
 1. copies `daemon/crepe_daemon` to `~/.local/share/crepe/daemon/`
    (`$XDG_DATA_HOME` is honoured);
@@ -27,8 +28,10 @@ The script is idempotent; run it again after changing the daemon. It:
    (`--system-site-packages`, so PyGObject stays importable) and installs
    `requirements.txt` into it;
 3. installs `crepe-daemon.service` to `~/.config/systemd/user/`;
-4. runs `systemctl --user daemon-reload` and `enable --now` (and a restart,
-   to pick up new code), unless `--no-enable` is given.
+4. runs `systemctl --user daemon-reload`, `reenable` and a restart (to pick
+   up new code), unless `--no-enable` is given. The unit is wanted by
+   `graphical-session.target`, so it starts and stops with the desktop
+   session.
 
 Logs: `journalctl --user -u crepe-daemon -f`.
 
@@ -157,8 +160,10 @@ Optional, in `~/.config/crepe/daemon.toml` (`$XDG_CONFIG_HOME` is honoured,
 | `remarks` | `false` | Allow `Remark` to call the API |
 | `max_reply_chars` | `160` | Hard cap on a reply |
 
-A missing file means defaults; an invalid one stops the daemon with a
-message in the journal. Restart the unit after editing it.
+A missing file means defaults; an invalid one makes the daemon exit with
+status 2 and a message in the journal, and systemd does not restart it
+(`RestartPreventExitStatus=2`) until you fix the file and restart the unit.
+Restart the unit after editing it.
 
 ## Guetteurs
 

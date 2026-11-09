@@ -9,6 +9,11 @@ Environment=PYTHONPATH=%h/.local/share/crepe/daemon
 ExecStart=%h/.local/share/crepe/daemon-venv/bin/python -m crepe_daemon
 Restart=on-failure
 RestartSec=5
+# Exit status 2 is a bad daemon.toml: restarting would only fail again.
+RestartPreventExitStatus=2
+TimeoutStopSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

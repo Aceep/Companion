@@ -18,6 +18,18 @@ for arg in "$@"; do
     esac
 done
 
+# The daemon reads its config with tomllib, new in Python 3.11.
+require_python_311() {
+    if "$1" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
+        return
+    fi
+    local version
+    version="$("$1" -c 'import platform; print(platform.python_version())' 2>/dev/null)" || version="not found"
+    echo "$2: Python $version, but the daemon needs Python 3.11 or newer." >&2
+    exit 1
+}
+require_python_311 python3 "python3"
+
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source_dir="$repo_dir/daemon"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -41,6 +53,8 @@ if [ ! -x "$venv_dir/bin/python" ]; then
     # System site packages keep PyGObject (gi) importable.
     python3 -m venv --system-site-packages "$venv_dir"
 fi
+# A venv left by an older install may predate the system's Python upgrade.
+require_python_311 "$venv_dir/bin/python" "$venv_dir"
 echo "Installing Python dependencies"
 "$venv_dir/bin/python" -m pip install --quiet --disable-pip-version-check -r "$source_dir/requirements.txt"
 "$venv_dir/bin/python" -c 'import gi; gi.require_version("Secret", "1"); from gi.repository import Gio, Secret' \
@@ -67,7 +81,8 @@ mv "$unit_path.tmp" "$unit_path"
 
 if [ "$enable" -eq 1 ]; then
     systemctl --user daemon-reload
-    systemctl --user enable --now crepe-daemon.service
+    # reenable, not enable: it also drops the default.target link of older installs.
+    systemctl --user reenable crepe-daemon.service
     systemctl --user restart crepe-daemon.service
     echo "crepe-daemon is running."
 else
