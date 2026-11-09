@@ -4,33 +4,73 @@ export type Reaction = 'facepalm' | 'pouce';
 const WAITING_WORDS = ['loading', 'chargement', 'compiling', 'building', 'installing', 'en cours'];
 const WAITING_ENDINGS = ['…', '...'];
 
-/**
- * Picks the reaction a piece of text deserves. Errors win over successes:
- * "build finished with errors" is a facepalm, not a thumbs up.
- */
-export function classify(text: string, errorKeywords: readonly string[], successKeywords: readonly string[]): Reaction | null {
-    const haystack = text.toLowerCase();
-    if (containsAny(haystack, errorKeywords))
-        return 'facepalm';
-    if (containsAny(haystack, successKeywords))
-        return 'pouce';
-    return null;
+export interface KeywordLists {
+    readonly error: readonly string[];
+    readonly success: readonly string[];
+    readonly busy: readonly string[];
 }
 
-/** Whether `text` contains one of `keywords`, ignoring case. */
-export function containsKeyword(text: string, keywords: readonly string[]): boolean {
-    return containsAny(text.toLowerCase(), keywords);
+/**
+ * The keyword settings, each list compiled once into a single pattern
+ * instead of being searched again for every notification and title.
+ */
+export class KeywordMatcher {
+    private readonly error: RegExp | null;
+    private readonly success: RegExp | null;
+    private readonly busy: RegExp | null;
+
+    constructor(lists: KeywordLists) {
+        this.error = wholeWordPattern(lists.error);
+        this.success = wholeWordPattern(lists.success);
+        this.busy = wholeWordPattern(lists.busy);
+    }
+
+    /**
+     * Picks the reaction a piece of text deserves. Errors win over successes:
+     * "build finished with error" is a facepalm, not a thumbs up.
+     */
+    classify(text: string): Reaction | null {
+        if (matches(this.error, text))
+            return 'facepalm';
+        if (matches(this.success, text))
+            return 'pouce';
+        return null;
+    }
+
+    /** Whether `text` has one of the busy keywords. */
+    looksBusy(text: string): boolean {
+        return matches(this.busy, text);
+    }
 }
+
+const WAITING_PATTERN = wholeWordPattern(WAITING_WORDS);
 
 /** Whether a window title says it is making you wait: a waiting word, or trailing dots. */
 export function looksLikeWaiting(title: string): boolean {
     const trimmed = title.trim();
-    return containsKeyword(trimmed, WAITING_WORDS) || WAITING_ENDINGS.some(ending => trimmed.endsWith(ending));
+    return matches(WAITING_PATTERN, trimmed) || WAITING_ENDINGS.some(ending => trimmed.endsWith(ending));
 }
 
-function containsAny(haystack: string, needles: readonly string[]): boolean {
-    return needles.some(needle => {
-        const trimmed = needle.trim().toLowerCase();
-        return trimmed.length > 0 && haystack.includes(trimmed);
-    });
+function matches(pattern: RegExp | null, text: string): boolean {
+    return pattern !== null && pattern.test(text);
+}
+
+/**
+ * One case-insensitive pattern matching any of `keywords` as a whole word,
+ * or null when the list has none. A word ends at anything that is not a
+ * letter or a digit in any script, so "test" stays out of "Latest" and
+ * "échec" out of nothing, while "error:" and "[failed]" still count.
+ */
+function wholeWordPattern(keywords: readonly string[]): RegExp | null {
+    const alternatives = keywords
+        .map(keyword => keyword.trim())
+        .filter(keyword => keyword.length > 0)
+        .map(escapeRegExp);
+    if (alternatives.length === 0)
+        return null;
+    return new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternatives.join('|')})(?![\\p{L}\\p{N}])`, 'iu');
+}
+
+function escapeRegExp(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

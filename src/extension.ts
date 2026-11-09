@@ -19,7 +19,7 @@ import {DragHandler} from './drag.js';
 import {EyesFollower} from './gaze.js';
 import {Hitbox} from './hitbox.js';
 import {InkSplatter} from './ink.js';
-import {classify, containsKeyword, looksLikeWaiting, type Reaction} from './keywords.js';
+import {KeywordMatcher, looksLikeWaiting, type Reaction} from './keywords.js';
 import {SpriteLayer} from './layer.js';
 import {CrepeMenu} from './menu.js';
 import {MeetingMonitor} from './meeting.js';
@@ -279,10 +279,23 @@ export default class CrepeExtension extends Extension {
         this.bannersHandlerId = desktopNotifications.connect('changed::show-banners', () =>
             this.syncHush(!this.flippingBannersForFocus));
 
+        const keywordLists = () => ({
+            error: settings.errorKeywords,
+            success: settings.successKeywords,
+            busy: settings.busyKeywords,
+        });
+        // Compiled once per edit of the lists rather than once per notification or title.
+        let keywords = new KeywordMatcher(keywordLists());
+        for (const key of ['error-keywords', 'success-keywords', 'busy-keywords'] as const) {
+            settings.onChanged(key, () => {
+                keywords = new KeywordMatcher(keywordLists());
+            });
+        }
+
         const tally = new NotificationTally();
         this.notifications = new NotificationWatcher(text => {
             // Counted whether she reacts or not: the recap is about your day, not hers.
-            const keyword = classify(text, settings.errorKeywords, settings.successKeywords);
+            const keyword = keywords.classify(text);
             stats.increment('notifications');
             if (keyword === 'facepalm')
                 stats.increment('errors');
@@ -308,7 +321,7 @@ export default class CrepeExtension extends Extension {
                 this.endWait();
                 return;
             }
-            const reaction = classify(title, settings.errorKeywords, settings.successKeywords);
+            const reaction = keywords.classify(title);
             // "Building... failed" is over, whatever its dots say.
             this.followWait(windowId, reaction !== 'facepalm' && looksLikeWaiting(title));
             // Only what she reacted to is counted: a title is seen again every time its window gets focus.
@@ -318,7 +331,7 @@ export default class CrepeExtension extends Extension {
                     stats.increment('errors');
                 return;
             }
-            if (longTasks.update(windowId, containsKeyword(title, settings.busyKeywords), Date.now())) {
+            if (longTasks.update(windowId, keywords.looksBusy(title), Date.now())) {
                 if (behaviour.react('pouce', {event: 'patience'}))
                     stats.increment('successes');
                 return;
