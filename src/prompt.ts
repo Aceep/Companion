@@ -153,16 +153,17 @@ export class PromptBox {
     }
 
     /**
-     * Centred over her head and kept inside the work area, so near a side
-     * edge it slides inwards. With no room above her for the box and the
-     * bubble over it, it goes beside her head instead, on the side with
-     * the more room.
+     * Centred over her head and kept inside the work area of the monitor
+     * she is on, so near a side edge it slides inwards. With no room above
+     * her for the box and the bubble over it, it goes beside her head
+     * instead, on the side with the more room.
      */
     private reposition(): void {
-        const monitor = Main.layoutManager.primaryMonitor;
+        const layout = Main.layoutManager;
+        const monitor = layout.monitors[layout.findIndexForActor(this.sprite.actor)] ?? layout.primaryMonitor;
         if (!monitor)
             return;
-        const area = Main.layoutManager.getWorkAreaForMonitor(monitor.index);
+        const area = layout.getWorkAreaForMonitor(monitor.index);
         const [, , width, height] = this.actor.get_preferred_size();
         const sprite = this.sprite.actor;
         const scale = this.sprite.currentScale;

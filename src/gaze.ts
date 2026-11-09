@@ -1,3 +1,4 @@
+import type {Rect} from './geometry.js';
 import type {TimerPool} from './timers.js';
 
 /** How often the pointer is looked at while the eyes follow it. */
@@ -48,13 +49,6 @@ export function restPoseOf(name: string | null): string | null {
 export function gazeTowards(dx: number, dy: number): GazeDirection {
     const eighths = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
     return GAZE_DIRECTIONS[(eighths + GAZE_DIRECTIONS.length) % GAZE_DIRECTIONS.length] ?? 'est';
-}
-
-export interface Rect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
 }
 
 /** Whatever shows the eyes: told where to look, and whether looking around makes sense right now. */

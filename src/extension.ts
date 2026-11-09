@@ -24,12 +24,13 @@ import {SpriteLayer} from './layer.js';
 import {CrepeMenu} from './menu.js';
 import {MeetingMonitor} from './meeting.js';
 import {pickGag, weekBilanDue, weekResume} from './memory.js';
+import type {Side} from './monitors.js';
 import {MusicWatcher} from './music.js';
 import {NudgeService, type RemindOutcome} from './nudge.js';
 import {INFO_MAX, TEXT_IN_LINE_MAX, oneLine, ticketCount, type NudgeKind} from './nudgetext.js';
 import {OutfitLayer, loadOutfits} from './outfit.js';
 import {AnimationPlayer, IDLE_ANIMATION} from './player.js';
-import {Positioner, type Side} from './positioner.js';
+import {Positioner} from './positioner.js';
 import {Presence} from './presence.js';
 import {PromptBox} from './prompt.js';
 import {MAX_PENDING, REMINDER_EXAMPLE, ReminderCenter, clockLabel, parseReminderRequest, plainConfirmation, whenLabel, type DeliveryKind, type Reminder} from './reminders.js';
@@ -296,7 +297,7 @@ export default class CrepeExtension extends Extension {
                     behaviour.resumeAfterDrag();
                     behaviour.pester('drag');
                 },
-                bounds: () => positioner.placementArea(),
+                bounds: (x, y) => positioner.placementAreaAt({x, y}),
             });
 
             const icon = Gio.FileIcon.new(assetsDir.get_child('reference').get_child('1_sud_face.png'));
@@ -1142,11 +1143,11 @@ export default class CrepeExtension extends Extension {
         return pointerX < this.sprite.actor.x + this.sprite.size / 2 ? 'regard_gauche' : 'regard_droite';
     }
 
-    /** Banners drop in at the top centre: from a side third of the screen she may point at them instead of jumping. */
+    /** Banners drop in at the top centre of the primary: from a side third of it she may point at them instead of jumping. */
     private jumpAtNotification(options: ReactionOptions): boolean {
         if (!this.behaviour || !this.sprite)
             return false;
-        const side = bannerSide(this.sprite.actor.x + this.sprite.size / 2);
+        const side = bannerSide(this.sprite);
         if (side === null || Math.random() >= this.pointChance)
             return this.behaviour.react('sursaut', options);
         return this.behaviour.react(pointerTowards(side), {event: 'notification', ...options});
@@ -1410,11 +1411,16 @@ export default class CrepeExtension extends Extension {
     }
 }
 
-/** Where a banner shows from her, if she stands in a side third of the primary monitor. */
-function bannerSide(spriteCenterX: number): Side | null {
+/**
+ * Where a banner shows from her, if she stands in a side third of the
+ * primary monitor. Banners only show on the primary: from another
+ * monitor there is nothing in sight to point at.
+ */
+function bannerSide(sprite: CrepeSprite): Side | null {
     const monitor = Main.layoutManager.primaryMonitor;
-    if (!monitor)
+    if (!monitor || Main.layoutManager.findIndexForActor(sprite.actor) !== monitor.index)
         return null;
+    const spriteCenterX = sprite.actor.x + sprite.size / 2;
     const third = monitor.width / 3;
     if (spriteCenterX < monitor.x + third)
         return 'right';

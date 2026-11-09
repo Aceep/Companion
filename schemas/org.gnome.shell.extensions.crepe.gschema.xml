@@ -127,17 +127,29 @@
       <default><![CDATA[['<Super>c']]]></default>
       <summary>Shortcut that opens the box to talk to her</summary>
     </key>
+    <key name="home-monitor" type="s">
+      <choices>
+        <choice value="primary"/>
+        <choice value="left"/>
+        <choice value="right"/>
+        <choice value="up"/>
+        <choice value="down"/>
+      </choices>
+      <default>'primary'</default>
+      <summary>Monitor she lives on</summary>
+      <description>Where it is from the primary monitor: beside it ("left", "right") when they share some height, otherwise above or below it ("up", "down"). When that monitor is not plugged in she lives on the primary one, and crawls back once it is.</description>
+    </key>
     <key name="fraction-x" type="d">
       <range min="0" max="1"/>
       <default>1.0</default>
       <summary>Horizontal position</summary>
-      <description>Where she sits across the primary monitor's work area: 0 is the left edge, 1 the right edge.</description>
+      <description>Where she sits across the work area of her monitor (home-monitor): 0 is the left edge, 1 the right edge.</description>
     </key>
     <key name="fraction-y" type="d">
       <range min="0" max="1"/>
       <default>1.0</default>
       <summary>Vertical position</summary>
-      <description>Where she sits down the primary monitor's work area: 0 is the top edge, 1 the bottom edge. She crawls at this height.</description>
+      <description>Where she sits down the work area of her monitor (home-monitor): 0 is the top edge, 1 the bottom edge. She crawls at this height.</description>
     </key>
     <key name="focus-minutes" type="i">
       <range min="5" max="180"/>

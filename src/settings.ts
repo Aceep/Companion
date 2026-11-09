@@ -1,5 +1,7 @@
 import type Gio from 'gi://Gio';
 
+import {isRoomDirection, type RoomDirection} from './monitors.js';
+
 const MINUTE = 60 * 1000;
 
 /** Read by the window manager itself, which binds the shortcut straight from the schema. */
@@ -20,6 +22,7 @@ export type SettingsKey =
     | 'error-keywords'
     | 'success-keywords'
     | 'busy-keywords'
+    | 'home-monitor'
     | 'fraction-x'
     | 'fraction-y'
     | 'perch'
@@ -275,6 +278,16 @@ export class CrepeSettings {
 
     set lastGagDate(value: string) {
         this.gsettings.set_string('last-gag-date', value);
+    }
+
+    /** The monitor she lives on, by where it is from the primary one; her fractions are of its work area. */
+    get homeMonitor(): RoomDirection {
+        const value = this.gsettings.get_string('home-monitor');
+        return isRoomDirection(value) ? value : 'primary';
+    }
+
+    set homeMonitor(value: RoomDirection) {
+        this.gsettings.set_string('home-monitor', value);
     }
 
     get fractionX(): number {

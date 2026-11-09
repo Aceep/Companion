@@ -16,7 +16,8 @@ export interface DragCallbacks {
     onSecondaryClick: () => void;
     onDragStart: () => void;
     onDrop: (x: number, y: number) => void;
-    bounds: () => DragBounds | null;
+    /** Where the actor may go were it moved to `x`, `y`: the range can change with where it is carried. */
+    bounds: (x: number, y: number) => DragBounds | null;
 }
 
 /**
@@ -120,7 +121,7 @@ export class DragHandler {
     }
 
     private moveActor(x: number, y: number): void {
-        const bounds = this.callbacks.bounds();
+        const bounds = this.callbacks.bounds(x, y);
         if (!bounds) {
             this.actor.set_position(x, y);
             return;

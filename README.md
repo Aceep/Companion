@@ -85,9 +85,10 @@ gnome-extensions prefs crepe@aceep.github.io
 - Falls asleep after a configurable idle time, waves when you come back.
 - Jumps on any notification. If its title or body contains an error
   keyword she facepalms instead; a success keyword earns a thumbs up.
-  Standing in the left or right third of the screen, half the time she
-  points a tentacle towards the top centre, where the banner shows,
-  instead of jumping.
+  Standing in the left or right third of the primary monitor, half the
+  time she points a tentacle towards its top centre, where the banner
+  shows, instead of jumping. On another monitor there is no banner in
+  sight, so she jumps.
 - Watches the focused window's title with the same keywords, so a
   terminal or IDE tab that says "failed" gets the facepalm. One reaction
   every four seconds at most.
@@ -108,9 +109,10 @@ gnome-extensions prefs crepe@aceep.github.io
   more, then stops saying it, earns a thumbs up and a remark about
   patience. If the title turns to an error instead, the facepalm wins.
 - Every few minutes (5 on average, a setting) she crawls sideways to a
-  new spot.
-- "Se cacher" in her menu sends her crawling to the nearest screen edge
-  and past it, until only the tips of her tentacles stick out. She
+  new spot: two times out of three on the monitor she is on, otherwise
+  on one she can crawl to beside it, never one above or below.
+- "Se cacher" in her menu sends her crawling to the nearest wall, an
+  edge of the screen with no monitor past it at her height, and past it, until only the tips of her tentacles stick out. She
   ignores everything out there, notifications included. She comes back
   to her spot when you click what is left of her, when she wakes up from
   a nap out there (you were away long enough for her to doze off, then
@@ -118,7 +120,8 @@ gnome-extensions prefs crepe@aceep.github.io
   she is away or still crawling there, the same menu entry reads
   "Revenir". A click out there is not pestering.
 - With "Perches on the focused window" on, she crawls onto the right end
-  of the focused window's title bar and rides along when it moves. She
+  of the focused window's title bar, when it is on the monitor she is
+  on, and rides along when it moves. She
   goes back to her own spot when focus goes to the desktop or the window
   is minimized or closed. Drop her somewhere and that becomes her spot.
 - Resting, her eyes follow the pointer, in eight directions. Within 60
@@ -130,7 +133,8 @@ gnome-extensions prefs crepe@aceep.github.io
 - Above the windows she can sit right over the one you work in. When
   the focused window comes under her (more than a quarter of her frame
   over it, once it has stopped moving for 400 ms), she crawls along her
-  row to the nearest spot clear of it, inside the work area. A window
+  row to the nearest spot clear of it, inside the work area of the
+  monitor she is on; a window on another monitor is not in her way. A window
   taking the whole row (maximized) sends her to the bottom-right corner
   instead. Three seconds after that window loses focus or moves off her
   spot, she crawls back there; dropped somewhere meanwhile, that is her
@@ -157,7 +161,7 @@ gnome-extensions prefs crepe@aceep.github.io
   behind her, with a word about it. Notifications still make her jump.
 - Keep pestering her while she sulks until the score reaches its cap of
   12 points and she has had enough: a word on her way out, then she
-  crawls off by the nearest side of the screen, all of her this time,
+  crawls off by the nearest wall, all of her this time,
   nothing left to click. For a minute she ignores everything:
   notifications, scripts, the menu (there is nothing to right-click),
   `Super+C`. Then she crawls back by the same side to her spot, bat still
@@ -255,11 +259,20 @@ gnome-extensions prefs crepe@aceep.github.io
 - A right-click opens a small menu: preferences, the focus session,
   switches for crawling and talking, a way to send her off-screen ("Se
   cacher") and one to hide her completely.
-- You can drag her anywhere on the primary monitor. She remembers the
-  spot across logouts and crawls at that height; logged out mid-crawl,
-  she comes back where the crawl stopped. A change of the desktop's
-  scale, of the monitors or of their work area (a panel or a dock
-  coming or going) puts her back at her spot within the new bounds.
+- The whole desktop is her home and each monitor a room of it. You can
+  drag her anywhere on any monitor. Crawling sideways, she goes on from
+  one monitor to the next where their edges touch at her height, lowered
+  into a smaller one if she has to; an edge with nothing past it is a
+  wall, and the only kind she hides or storms off by. She remembers the
+  monitor (`home-monitor`: `primary`, or `left`, `right`, `up`, `down`
+  of it) and the spot on it across logouts, and crawls at that height;
+  logged out mid-crawl, she comes back where the crawl stopped. While
+  her monitor is unplugged she lives on the primary, and once it is
+  plugged in again she crawls back to it, unless she is hiding, storming
+  off, perched or out of a window's way, in which case she goes there on
+  her way back. A change of the desktop's scale, of the monitors or of
+  their work area (a panel or a dock coming or going) puts her back at
+  her spot within the new bounds.
 
 ## Tenues
 
@@ -504,7 +517,9 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/dodge.ts` | Moving out of the focused window's way and back, overlap and free-spot maths |
 | `src/layer.ts` | Puts her on the stage above the windows (top chrome) or below them (window group), kept there across restacks |
 | `src/hitbox.ts` | Invisible actor over her body that takes clicks, kept on the sprite |
-| `src/positioner.ts` | Keeps her inside the work area at a remembered spot, moves her sideways, off-screen or anywhere for trips |
+| `src/positioner.ts` | Keeps her inside a monitor's work area at a remembered spot, moves her sideways from monitor to monitor, off-screen past a wall or anywhere for trips |
+| `src/monitors.ts` | The monitors as rooms of one home: which room a point is in, which edges touch and which are walls, where a room is from the primary, crawl routes and stroll destinations. No GNOME dependency |
+| `src/geometry.ts` | The point and rectangle shapes the pure modules share |
 | `src/presence.ts` | Where she is when not at her spot: hiding off-screen, storming off, perched on the focused window, out of its way. Drives the trips there and back |
 | `src/drag.ts` | Click versus drag on the hitbox, pointer grab while she is carried |
 | `src/menu.ts` | Right-click menu: preferences, focus session, crawl and talk switches, off-screen and hide entries, temporary mute offer, conversation entries |

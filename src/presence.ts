@@ -3,8 +3,10 @@ import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import type {IdleBehaviour} from './behaviour.js';
+import type {Point} from './geometry.js';
 import type {Hitbox} from './hitbox.js';
-import type {Point, Positioner, Side} from './positioner.js';
+import type {Side} from './monitors.js';
+import type {Positioner} from './positioner.js';
 import type {CrepeSettings} from './settings.js';
 import {FEET_PADDING, type CrepeSprite} from './sprite.js';
 
@@ -44,6 +46,8 @@ export class Presence {
     private focusHandlerId: number | null = null;
     private perchWindow: Meta.Window | null = null;
     private perchHandlerIds: number[] = [];
+    /** Her room was unplugged at the last look: when it is back, she crawls there. */
+    private homeMissing: boolean;
 
     constructor(sprite: CrepeSprite, hitbox: Hitbox, positioner: Positioner, behaviour: IdleBehaviour, settings: CrepeSettings) {
         this.sprite = sprite;
@@ -51,6 +55,7 @@ export class Presence {
         this.positioner = positioner;
         this.behaviour = behaviour;
         this.settings = settings;
+        this.homeMissing = positioner.isHomeRoomMissing();
         // The only listeners to these: with the positioner listening too, which ran first decided where she ended up.
         this.monitorsHandlerId = Main.layoutManager.connect('monitors-changed', () => this.settle());
         // A panel or a dock appearing, growing or going moves the edges she keeps inside.
@@ -131,13 +136,17 @@ export class Presence {
             this.hide();
     }
 
-    /** She crawls to the nearest edge of the screen, then past it until only a sliver shows. Halfway back, she turns around. */
+    /**
+     * She crawls to the nearest wall, an edge of the screen with no
+     * monitor past it, then past it until only a sliver shows. Halfway
+     * back, she turns around.
+     */
     hide(): void {
         this.leave(true, () => this.comeBack());
     }
 
     /**
-     * Furious: past the nearest edge with nothing of her left to click or
+     * Furious: past the nearest wall with nothing of her left to click or
      * see, and deaf to everything until `stormBack()`. Waking up out there
      * does not bring her back either. False when she could not set off.
      */
@@ -190,7 +199,7 @@ export class Presence {
                 this.positioner.moveTo(edgeX, speed, () => slideOff(done));
         }, () => {
             this.state = 'away';
-            // Past the primary monitor's edge may be another monitor; a fury is not something to watch.
+            // Past a wall may still lie a monitor that does not quite touch it; a fury is not something to watch.
             if (this.storming)
                 this.showAndReach(false);
         });
@@ -276,12 +285,23 @@ export class Presence {
             this.behaviour.resume();
     }
 
-    /** The sprite was rescaled, or the monitors or their work areas changed: put her back where her state says. */
+    /**
+     * The sprite was rescaled, or the monitors or their work areas changed:
+     * put her back where her state says. Her room plugged in again, she
+     * crawls back to it from the primary rather than jumping there.
+     */
     settle(): void {
         // A trip in progress ends where it was headed; a perch trip snaps to the window on arrival.
         // Her own crawl too: snapping her home mid-way would cut its slide, and with it the end of the crawl.
+        // Her room coming back meanwhile is noticed at the next settle.
         if (this.travelling || this.behaviour.isCrawling)
             return;
+        const homeWasMissing = this.homeMissing;
+        this.homeMissing = this.positioner.isHomeRoomMissing();
+        if (this.state === 'home' && homeWasMissing && !this.homeMissing) {
+            this.moveBackIn();
+            return;
+        }
         switch (this.state) {
         case 'away':
             this.positioner.putOffscreen(this.hidingSide, !this.storming);
@@ -292,6 +312,24 @@ export class Presence {
         default:
             this.positioner.place();
         }
+    }
+
+    /**
+     * From the primary to her room, plugged in again, as a trip. Only from
+     * home: hiding, perched or out of a window's way, her way back ends
+     * there anyway.
+     */
+    private moveBackIn(): void {
+        const home = this.positioner.homePosition();
+        if (!home)
+            return;
+        // A trip cut short on the way must not leave her remembered room behind on the primary.
+        this.positioner.detach();
+        const started = this.errand(home.x > this.sprite.actor.x, done =>
+            this.positioner.travelTo(home, this.speed(), done), () => this.positioner.attach());
+        // Carried, the drop decides where she lives and gives her spot back; asleep or not shown, she is put there.
+        if (!started && !this.behaviour.isDragging)
+            this.positioner.attach();
     }
 
     private arriveHome(onHome: () => void): void {
@@ -328,8 +366,8 @@ export class Presence {
             this.goHome();
             return;
         }
-        // Dialogs, popups, fullscreen windows, other monitors: she stays where she is.
-        if (window === this.perchWindow || !canPerchOn(window))
+        // Dialogs, popups, fullscreen windows, windows in another room: she stays where she is.
+        if (window === this.perchWindow || !canPerchOn(window, this.positioner.roomIndex))
             return;
         this.perchOn(window);
     }
@@ -408,12 +446,15 @@ export class Presence {
 
     /**
      * Her right edge on the window's, her tentacles on the top of its
-     * title bar. Kept inside the work area, so on a maximized window she
-     * sits over the right end of the title bar instead of above it.
+     * title bar. Kept inside the work area of the window's monitor, so on
+     * a maximized window she sits over the right end of the title bar
+     * instead of above it, and follows it when it goes to another room.
      */
     private perchSpot(): Point | null {
-        const area = this.positioner.placementArea();
-        if (!area || !this.perchWindow)
+        if (!this.perchWindow)
+            return null;
+        const area = this.positioner.placementAreaOfMonitor(this.perchWindow.get_monitor());
+        if (!area)
             return null;
         const frame = this.perchWindow.get_frame_rect();
         const size = this.sprite.size;
@@ -446,11 +487,12 @@ export function isDesktop(window: Meta.Window): boolean {
     return window.get_window_type() === Meta.WindowType.DESKTOP || window.is_skip_taskbar();
 }
 
-function canPerchOn(window: Meta.Window): boolean {
+/** A window in the room she is in, `roomIndex` being its monitor. */
+function canPerchOn(window: Meta.Window, roomIndex: number | null): boolean {
     return window.get_window_type() === Meta.WindowType.NORMAL &&
         !window.is_fullscreen() &&
         !window.minimized &&
-        window.get_monitor() === Main.layoutManager.primaryIndex;
+        window.get_monitor() === roomIndex;
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -1,9 +1,9 @@
 import type Meta from 'gi://Meta';
 
 import type {IdleBehaviour} from './behaviour.js';
-import type {Rect} from './gaze.js';
+import type {Point, Rect} from './geometry.js';
 import {isDesktop, type Presence} from './presence.js';
-import type {Point, Positioner} from './positioner.js';
+import type {Positioner} from './positioner.js';
 import type {CrepeSettings} from './settings.js';
 import type {CrepeSprite} from './sprite.js';
 import type {TimerPool} from './timers.js';
@@ -43,9 +43,10 @@ export function freeSpotOnRow(x: number, size: number, window: Rect, minX: numbe
 /**
  * On top of every window, she can sit right over what you are working on.
  * When the focused window comes under her, she crawls aside along her row,
- * or to the bottom-right corner when the window takes the whole row, and
- * back to her spot a little after the window has lost focus or moved
- * off it. Carried somewhere meanwhile, that is her spot now and there is
+ * or to the bottom-right corner when the window takes the whole row, both
+ * in the room she is in, and back to her spot a little after the window
+ * has lost focus or moved off it. A window on another monitor is not in
+ * her way. Carried somewhere meanwhile, that is her spot now and there is
  * nothing to go back to. The first time a window sends her aside she may
  * say so.
  */
@@ -253,10 +254,12 @@ export class Dodger {
             !this.behaviour.isAsleep && !this.behaviour.isDragging && !this.behaviour.focusMode;
     }
 
-    /** The focused window's frame, when it is one she could be in the way of. */
+    /** The focused window's frame, when it is one she could be in the way of: in the room she is in. */
     private focusedFrame(): Rect | null {
         const window = this.window;
         if (!window || window.minimized || window.is_fullscreen() || isDesktop(window))
+            return null;
+        if (window.get_monitor() !== this.positioner.roomIndex)
             return null;
         return window.get_frame_rect();
     }

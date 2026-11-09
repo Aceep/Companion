@@ -1,9 +1,4 @@
-export interface Rect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
+import type {Rect} from './geometry.js';
 
 export interface InkSpot {
     /** Which splat drawing, an index into the sizes given. */

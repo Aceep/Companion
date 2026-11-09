@@ -3,10 +3,11 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {FRAME_SIZE} from './animations.js';
+import type {Point} from './geometry.js';
+import {House, type Bounds, type Room, type Side} from './monitors.js';
 import type {CrepeSettings} from './settings.js';
 import {SIDE_PADDING, type CrepeSprite} from './sprite.js';
 
-const EDGE_MARGIN = 24;
 /** Sprite pixels of her body left on screen while she hides, enough to click her back. */
 const PEEK_WIDTH = 10;
 
@@ -15,26 +16,13 @@ interface EaseableActor extends Clutter.Actor {
     ease(params: {x: number; y?: number; duration: number; mode: Clutter.AnimationMode; onComplete: () => void}): void;
 }
 
-/** Where her top-left corner may go, in stage pixels. */
-interface PlacementArea {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-}
-
-export interface Point {
-    x: number;
-    y: number;
-}
-
-export type Side = 'left' | 'right';
-
 /**
- * Keeps Crêpe inside the primary monitor's work area, at a position stored
- * as fractions of it so it survives rescales, monitor changes and logouts.
- * Moves her sideways at her current height for her own crawls, and
- * anywhere, off-screen included, for trips she is sent on.
+ * Keeps Crêpe inside the work area of one of the monitors, the rooms of
+ * her home, at a position stored as the room and fractions of its work
+ * area so it survives rescales, monitor changes and logouts. Moves her
+ * sideways at her current height for her own crawls, from one room to
+ * the next where their monitors touch, and anywhere, off-screen
+ * included, for trips she is sent on.
  */
 export class Positioner {
     private readonly sprite: CrepeSprite;
@@ -57,7 +45,7 @@ export class Positioner {
         this.sprite.actor.remove_all_transitions();
     }
 
-    /** Puts her at the stored fractions of the work area, unless she is detached from them. */
+    /** Puts her at the stored fractions of her room's work area, unless she is detached from them. */
     place(): void {
         const home = this.homePosition();
         if (this.detached || !home)
@@ -85,86 +73,88 @@ export class Positioner {
         return {x: this.sprite.actor.x, y: this.sprite.actor.y};
     }
 
-    /** Whether her top-left corner may sit at `point` without being snapped back inside the work area. */
-    isInsideArea(point: Point): boolean {
-        const area = this.placementArea();
-        return area !== null &&
-            point.x >= area.minX && point.x <= area.maxX &&
-            point.y >= area.minY && point.y <= area.maxY;
+    /** The monitor index of the room she is in, or null with no monitor at all. */
+    get roomIndex(): number | null {
+        return this.house()?.roomOf(this.position)?.index ?? null;
     }
 
-    /** Her remembered spot, in stage pixels. */
+    /** Whether her top-left corner may sit at `point` without being snapped back inside a work area. */
+    isInsideArea(point: Point): boolean {
+        return this.house()?.isInside(point) ?? false;
+    }
+
+    /** Her room is a monitor that is not plugged in: she lives on the primary one meanwhile. */
+    isHomeRoomMissing(): boolean {
+        const house = this.house();
+        return house !== null && house.roomInDirection(this.settings.homeMonitor) === null;
+    }
+
+    /** Her remembered spot, in stage pixels: in her room, or on the primary while it is missing. */
     homePosition(): Point | null {
-        const area = this.placementArea();
-        if (!area)
+        const house = this.house();
+        const room = house?.roomInDirection(this.settings.homeMonitor) ?? house?.primary ?? null;
+        if (!house || !room)
             return null;
+        const bounds = house.bounds(room);
         return {
-            x: area.minX + this.settings.fractionX * (area.maxX - area.minX),
-            y: area.minY + this.settings.fractionY * (area.maxY - area.minY),
+            x: bounds.minX + this.settings.fractionX * (bounds.maxX - bounds.minX),
+            y: bounds.minY + this.settings.fractionY * (bounds.maxY - bounds.minY),
         };
     }
 
-    /** The side of the work area she is closer to. */
+    /** The side of the nearest wall, an edge with no monitor past it at her height. */
     nearestSide(): Side {
-        const area = this.placementArea();
-        if (!area)
-            return 'right';
-        return this.sprite.actor.x < (area.minX + area.maxX) / 2 ? 'left' : 'right';
+        return this.house()?.nearestWall(this.position) ?? 'right';
     }
 
-    /** Her x when she stands against that edge of the work area. */
+    /** Her x when she stands against the wall on that side, rooms in between crossed. */
     edgeX(side: Side): number | null {
-        const area = this.placementArea();
-        if (!area)
+        const house = this.house();
+        const room = house?.wallRoom(this.position, side) ?? null;
+        if (!house || !room)
             return null;
-        return side === 'left' ? area.minX : area.maxX;
+        const bounds = house.bounds(room);
+        return side === 'left' ? bounds.minX : bounds.maxX;
     }
 
-    /** A destination at least a quarter of the screen away, or null if there is no room. */
+    /** A destination for a stroll, in her room or one she can crawl to, or null if there is no room. */
     pickDestination(): number | null {
-        const area = this.placementArea();
-        if (!area || area.maxX - area.minX < this.sprite.size)
-            return null;
-        const width = area.maxX - area.minX;
-        const current = this.sprite.actor.x;
-        for (let attempt = 0; attempt < 10; attempt++) {
-            const candidate = area.minX + Math.random() * width;
-            if (Math.abs(candidate - current) >= width / 4)
-                return Math.round(candidate);
-        }
-        return null;
+        return this.house()?.pickDestination(this.position, Math.random) ?? null;
     }
 
     /**
-     * Slides her to `x` at a constant speed, keeping her height. `onArrived`
-     * only fires when the trip completes, not when it is cancelled.
+     * Crawls her to `x` at a constant speed, keeping her height, from room
+     * to room where the monitors touch. `onArrived` only fires when the
+     * trip completes, not when it is cancelled.
      */
     moveTo(x: number, pixelsPerSecond: number, onArrived: () => void): void {
-        this.slide({x, y: this.sprite.actor.y}, pixelsPerSecond, () => {
-            this.rememberFractionX();
+        const route = this.house()?.crawlRoute(this.position, x) ?? [{x, y: this.sprite.actor.y}];
+        this.slideThrough(route, pixelsPerSecond, () => {
+            this.rememberSpot(false);
             onArrived();
         });
     }
 
     /**
-     * Slides her to any point at a constant speed, outside the work area
+     * Slides her to any point at a constant speed, outside the work areas
      * included, without touching the remembered spot. Same `onArrived`
      * rule as `moveTo()`.
      */
     travelTo(point: Point, pixelsPerSecond: number, onArrived: () => void): void {
-        this.slide(point, pixelsPerSecond, onArrived);
+        const route = this.house()?.travelRoute(this.position, point) ?? [point];
+        this.slideThrough(route, pixelsPerSecond, onArrived);
     }
 
     /**
-     * Slides her past that edge of the monitor, at her current height,
-     * until only a sliver of her shows, or, without `peek`, until her whole
+     * Slides her past the wall on that side, at her current height, until
+     * only a sliver of her shows, or, without `peek`, until her whole
      * frame is past it.
      */
     moveOffscreen(side: Side, pixelsPerSecond: number, onDone: () => void, peek = true): void {
         const x = this.offscreenX(side, peek);
         if (x === null)
             return;
-        this.slide({x, y: this.sprite.actor.y}, pixelsPerSecond, onDone);
+        this.slideThrough([{x, y: this.sprite.actor.y}], pixelsPerSecond, onDone);
     }
 
     /** Same place as `moveOffscreen()`, right away: the monitors changed while she was hiding. */
@@ -181,49 +171,88 @@ export class Positioner {
      */
     cancelMove(): void {
         this.sprite.actor.remove_all_transitions();
-        this.rememberFractionX();
-        this.rememberFractionY();
+        this.rememberSpot(false);
     }
 
     /**
-     * Stores where she was dropped, then snaps her into the work area if
-     * she landed outside it. Wherever she was before, that spot is hers now.
+     * Stores where she was dropped, room included, then snaps her into
+     * that room's work area if she landed outside it. Wherever she was
+     * before, that spot is hers now.
      */
     rememberPosition(): void {
         this.detached = false;
-        const area = this.placementArea();
-        if (!area)
-            return;
-        this.rememberFractionX();
-        this.rememberFractionY();
+        this.rememberSpot(true);
         this.place();
     }
 
-    placementArea(): PlacementArea | null {
-        const monitor = Main.layoutManager.primaryMonitor;
-        if (!monitor)
+    /** Where her top-left corner may go in the room she is in. */
+    placementArea(): Bounds | null {
+        return this.placementAreaAt(this.position);
+    }
+
+    /** Where her top-left corner may go in the room she would be in at `point`: while carried, the room under her. */
+    placementAreaAt(point: Point): Bounds | null {
+        const house = this.house();
+        const room = house?.roomOf(point) ?? null;
+        return house && room ? house.bounds(room) : null;
+    }
+
+    /** Where her top-left corner may go on that monitor, or in her room if it is gone. */
+    placementAreaOfMonitor(index: number): Bounds | null {
+        const house = this.house();
+        const room = house?.roomByIndex(index) ?? null;
+        return house && room ? house.bounds(room) : this.placementArea();
+    }
+
+    /**
+     * The monitors as they are now. Built at each use rather than kept:
+     * the presence follows monitor and work-area changes, and her size
+     * changes with the scale.
+     */
+    private house(): House | null {
+        const layout = Main.layoutManager;
+        if (layout.monitors.length === 0)
             return null;
-        const workArea = Main.layoutManager.getWorkAreaForMonitor(monitor.index);
-        return {
-            minX: workArea.x + EDGE_MARGIN,
-            maxX: workArea.x + workArea.width - this.sprite.size - EDGE_MARGIN,
-            minY: workArea.y,
-            maxY: workArea.y + workArea.height - this.sprite.size,
-        };
+        const rooms: Room[] = layout.monitors.map(monitor => {
+            const area = layout.getWorkAreaForMonitor(monitor.index);
+            return {
+                index: monitor.index,
+                monitor: {x: monitor.x, y: monitor.y, width: monitor.width, height: monitor.height},
+                area: {x: area.x, y: area.y, width: area.width, height: area.height},
+            };
+        });
+        return new House(rooms, layout.primaryIndex, this.sprite.size);
     }
 
-    private rememberFractionX(): void {
-        const area = this.placementArea();
-        if (this.detached || !area || area.maxX <= area.minX)
+    /**
+     * Her room and her fractions of its work area. `dropped` says she was
+     * put there: her own crawls on the primary while her room is unplugged
+     * must not make her forget it, so they only move her spot there.
+     */
+    private rememberSpot(dropped: boolean): void {
+        const house = this.house();
+        const room = house?.roomOf(this.position) ?? null;
+        if (this.detached || !house || !room)
             return;
-        this.settings.fractionX = toFraction(this.sprite.actor.x, area.minX, area.maxX);
+        const camping = room === house.primary && house.roomInDirection(this.settings.homeMonitor) === null;
+        const direction = house.directionOf(room);
+        if ((dropped || !camping) && direction !== this.settings.homeMonitor)
+            this.settings.homeMonitor = direction;
+        const bounds = house.bounds(room);
+        if (bounds.maxX > bounds.minX)
+            this.settings.fractionX = toFraction(this.sprite.actor.x, bounds.minX, bounds.maxX);
+        if (bounds.maxY > bounds.minY)
+            this.settings.fractionY = toFraction(this.sprite.actor.y, bounds.minY, bounds.maxY);
     }
 
-    private rememberFractionY(): void {
-        const area = this.placementArea();
-        if (this.detached || !area || area.maxY <= area.minY)
+    /** One slide per stop, so crossing into a smaller room she drops to its height at the edge, not on the way. */
+    private slideThrough(route: readonly Point[], pixelsPerSecond: number, onComplete: () => void): void {
+        const [next, ...rest] = route;
+        if (!next) {
+            onComplete();
             return;
-        this.settings.fractionY = toFraction(this.sprite.actor.y, area.minY, area.maxY);
+        }
+        this.slide(next, pixelsPerSecond, () => this.slideThrough(rest, pixelsPerSecond, onComplete));
     }
 
     /** Whichever axis has further to go sets the duration, so a diagonal trip keeps the crawl pace. */
@@ -241,13 +270,14 @@ export class Positioner {
 
     /**
      * Her x when `PEEK_WIDTH` sprite pixels of her body, not of the empty
-     * frame around it, stay on the monitor. Without `peek` the whole frame
-     * goes: some gestures reach into its margin.
+     * frame around it, stay on the monitor whose edge is the wall on that
+     * side. Without `peek` the whole frame goes: some gestures reach into its margin.
      */
     private offscreenX(side: Side, peek: boolean): number | null {
-        const monitor = Main.layoutManager.primaryMonitor;
-        if (!monitor)
+        const room = this.house()?.wallRoom(this.position, side) ?? null;
+        if (!room)
             return null;
+        const monitor = room.monitor;
         const scale = this.sprite.currentScale;
         if (!peek)
             return side === 'left' ? monitor.x - FRAME_SIZE * scale : monitor.x + monitor.width;

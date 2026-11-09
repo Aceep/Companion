@@ -189,9 +189,10 @@ export class SpeechBubble {
         });
     }
 
-    /** Centred above her head (or the anchor), kept on the primary monitor; below when the top edge is too close. */
+    /** Centred above her head (or the anchor), kept on the monitor she is on; below when the top edge is too close. */
     private reposition(): void {
-        const monitor = Main.layoutManager.primaryMonitor;
+        const layout = Main.layoutManager;
+        const monitor = layout.monitors[layout.findIndexForActor(this.sprite.actor)] ?? layout.primaryMonitor;
         if (!monitor)
             return;
         const [, , width, height] = this.actor.get_preferred_size();

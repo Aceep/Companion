@@ -3,7 +3,8 @@ import type Gio from 'gi://Gio';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {pickInkSpots, type Rect} from './inkspots.js';
+import type {Rect} from './geometry.js';
+import {pickInkSpots} from './inkspots.js';
 import {decodePixbuf, imageOf, setUpPixelArt} from './sprite.js';
 import type {TimerPool} from './timers.js';
 
