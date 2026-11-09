@@ -397,8 +397,10 @@ daemon is told about, under its kind.
 ### Pense-bêtes
 
 "Pense-bête…" in her menu is an entry to type into (Enter validates): `15h30 appeler Paul`,
-`dans 20 min sortir le pain`, `dans 1h30 pause`, `demain 9h rendez-vous`, with an optional
-`:` or ` - ` before the text. A time already past today means tomorrow. She confirms in her
+`dans 20 min sortir le pain`, `dans 1h30 pause`, `dans 1h 15 min pause`, `demain 9h rendez-vous`,
+`midi déjeuner` (`midi` and `minuit` stand for 12h and 0h), with an optional `:` or ` - ` before
+the text. Minutes after a space need their unit, so `dans 1h 2 courses` is in an hour. The text is
+kept on one line and cut to 100 characters. A time already past today means tomorrow. She confirms in her
 bubble, or says she did not understand and gives an example. "Pense-bêtes (n)" lists the
 pending ones (20 at most); clicking one cancels it. From a script:
 
@@ -408,11 +410,13 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 ```
 
 It answers with her confirmation, or fails with `io.github.aceep.Crepe.Error.BadTime` (the
-message has examples) or `...Error.TooMany`. They live in the `reminders` setting, so a re-login
+message has examples), `...Error.TooMany`, or `...Error.TooFast` for a second call within five
+seconds. They live in the `reminders` setting, so a re-login
 keeps them; overdue ones are delivered when she starts ("Tu avais un pense-bête à 14h : ..."). When one
 rings, her bubble stays until you click her (a click that is no pestering), she wakes up for
 it, and ignored, she repeats it every 5 minutes, 3 times at most, getting a little more
-annoyed each time. During a meeting it waits and is said first when it ends, before the summary.
+annoyed each time. One at a time: another one coming due meanwhile waits for that click, or
+for her to give up on the first. During a meeting it waits and is said first when it ends, before the summary.
 The lines are `pense_bete`, `pense_bete_relance`, `pense_bete_ok`, `pense_bete_incompris`,
 `pense_bete_en_retard`, `pense_bete_plein` (`{texte}`, `{heure}`, and `{quand}` in `pense_bete_ok`).
 

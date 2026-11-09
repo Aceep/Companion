@@ -23,13 +23,15 @@ export const NUDGE_KINDS = [
 ] as const;
 
 export type NudgeKind = typeof NUDGE_KINDS[number];
+/** The nudge kinds, and `remind` for `Remind()` calls, which a looping script could flood the same way. */
+export type LimitedKind = NudgeKind | 'remind';
 
-/** At most one nudge per kind per five seconds. Pure bookkeeping, timestamps come in. */
+/** At most one call per kind per five seconds. Pure bookkeeping, timestamps come in. */
 export class NudgeLimiter {
-    private readonly lastAt = new Map<NudgeKind, number>();
+    private readonly lastAt = new Map<LimitedKind, number>();
 
-    /** True when a nudge of this kind arriving at `now` gets through, and counts it. */
-    allow(kind: NudgeKind, now: number): boolean {
+    /** True when a call of this kind arriving at `now` gets through, and counts it. */
+    allow(kind: LimitedKind, now: number): boolean {
         const last = this.lastAt.get(kind);
         if (last !== undefined && now - last < NUDGE_EVERY_MS)
             return false;

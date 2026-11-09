@@ -7,6 +7,7 @@ const OBJECT_PATH = '/io/github/aceep/Crepe';
 const INTERFACE_NAME = 'io.github.aceep.Crepe';
 const UNKNOWN_KIND_ERROR = `${INTERFACE_NAME}.Error.UnknownKind`;
 const ERROR_PREFIX = `${INTERFACE_NAME}.Error`;
+const TOO_FAST_ERROR = `${ERROR_PREFIX}.TooFast`;
 
 const INTERFACE_XML = `
 <node>
@@ -33,7 +34,8 @@ export type RemindOutcome = {ok: true; confirmation: string} | {ok: false; error
  * The extension's own D-Bus object on the shell's connection, so any
  * script can reach her through `org.gnome.Shell`: `Nudge()` makes her
  * react, `Remind()` sets a reminder, `Ping()` tells whether she is there. Unknown kinds are refused
- * with a D-Bus error; nudges past the rate limit are accepted and dropped.
+ * with a D-Bus error; nudges past the rate limit are accepted and dropped. Reminders past it are
+ * refused with `TooFast`, since the caller waits for a confirmation that would otherwise lie.
  */
 export class NudgeService {
     private readonly exported: Gio.DBusExportedObject;
@@ -58,6 +60,10 @@ export class NudgeService {
                 }
             },
             RemindAsync: ([when, text]: [string, string], invocation: Gio.DBusMethodInvocation) => {
+                if (!this.limiter.allow('remind', Date.now())) {
+                    invocation.return_dbus_error(TOO_FAST_ERROR, 'Un pense-bête à la fois : réessaie dans quelques secondes.');
+                    return;
+                }
                 let outcome: RemindOutcome;
                 try {
                     outcome = onRemind(when, text);

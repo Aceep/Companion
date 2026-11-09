@@ -70,8 +70,6 @@ const MEETING_WORTH_A_WORD = 2 * 60 * 1000;
 /** The summary waits for her to be free (awake, at home, not focusing) this long, then is dropped as stale. */
 const SUMMARY_PATIENCE = 10 * 60 * 1000;
 const SUMMARY_RETRY_EVERY = 10 * 1000;
-/** A reminder's text, as it is quoted in her line. */
-const REMINDER_TEXT_MAX = 100;
 /** Sprite rows from her head's top to her eyes, in the resting pose. */
 const EYES_BELOW_HEAD = 22;
 
@@ -753,7 +751,8 @@ export default class CrepeExtension extends Extension {
         if (!behaviour || !presence || !voice)
             return;
         const event = kind === 'nag' ? 'pense_bete_relance' : kind === 'late' ? 'pense_bete_en_retard' : 'pense_bete';
-        const texte = oneLine(reminder.text, REMINDER_TEXT_MAX);
+        // Stored on one line and cut already, by the center.
+        const texte = reminder.text;
         const line = voice.pick(event, {texte, heure: clockLabel(new Date(reminder.at))}) ?? texte;
         if (presence.isHidden)
             presence.comeBack();
