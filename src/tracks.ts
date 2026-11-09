@@ -1,3 +1,5 @@
+import {oneLine} from './nudgetext.js';
+
 /** Titles are quoted inside a short line; past this they are cut. */
 export const TITLE_MAX_LENGTH = 30;
 /** The same track reported by two sources inside this is one track. */
@@ -7,7 +9,7 @@ const SAME_SILENCE_WINDOW_MS = 2 * 60 * 1000;
 const TITLE_ARTIST_SEPARATOR = ' — ';
 
 export function truncateTitle(title: string): string {
-    return title.length > TITLE_MAX_LENGTH ? `${title.slice(0, TITLE_MAX_LENGTH - 1)}…` : title;
+    return oneLine(title, TITLE_MAX_LENGTH);
 }
 
 /** The title of a daemon's "Titre — Artiste"; the whole text when it has no artist. */

@@ -1,4 +1,4 @@
-import type {NudgeKind} from './nudge.js';
+import type {NudgeKind} from './nudgetext.js';
 
 /** More than this and the oldest is forgotten: the summary is a line, not a log. */
 export const DIGEST_CAP = 20;

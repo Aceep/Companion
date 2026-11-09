@@ -486,7 +486,8 @@ gdbus call --session --dest org.gnome.Shell --object-path /io/github/aceep/Crepe
 | `src/menu.ts` | Right-click menu: preferences, focus session, crawl and talk switches, off-screen and hide entries, temporary mute offer, conversation entries |
 | `src/behaviour.ts` | Blinks, rare fidgets, crawling, sleep on idle and at bedtime, wave on return, reactions, impatient tapping, hush, pestering, break reminder, focus sessions, trips she is sent on, events worth a line |
 | `src/mood.ts` | Annoyance score from clicks and moves, decay, sulking and storming off. No GNOME dependency |
-| `src/nudge.ts` | The `io.github.aceep.Crepe` D-Bus object scripts call (`Nudge`, `Ping`), per-kind rate limit, text clean-up |
+| `src/nudge.ts` | The `io.github.aceep.Crepe` D-Bus object scripts call (`Nudge`, `Remind`, `Ping`) |
+| `src/nudgetext.ts` | Nudge kinds, per-kind rate limit, text clean-up (invisible characters, one line, cut). No GNOME dependency |
 | `src/voice.ts` | Picks a line from `assets/repliques.json`: cooldown, odds, time of day, placeholders, the evening recap. No Clutter dependency |
 | `src/meeting.ts` | Screen sharing, microphone and camera signals from the shell |
 | `src/digest.ts` | What a meeting hides or silences, and the count of nudges she missed. No GNOME dependency |
