@@ -34,6 +34,7 @@ export class Presence {
     private readonly behaviour: IdleBehaviour;
     private readonly settings: CrepeSettings;
     private readonly monitorsHandlerId: number;
+    private readonly workAreasHandlerId: number;
 
     private state: State = 'home';
     private hidingSide: Side = 'right';
@@ -50,7 +51,10 @@ export class Presence {
         this.positioner = positioner;
         this.behaviour = behaviour;
         this.settings = settings;
+        // The only listeners to these: with the positioner listening too, which ran first decided where she ended up.
         this.monitorsHandlerId = Main.layoutManager.connect('monitors-changed', () => this.settle());
+        // A panel or a dock appearing, growing or going moves the edges she keeps inside.
+        this.workAreasHandlerId = global.display.connect('workareas-changed', () => this.settle());
     }
 
     /** Hiding or on her way to hide: what the menu offers is to come back. */
@@ -107,6 +111,7 @@ export class Presence {
     destroy(): void {
         this.stop();
         Main.layoutManager.disconnect(this.monitorsHandlerId);
+        global.display.disconnect(this.workAreasHandlerId);
     }
 
     /** The perch setting changed. */
@@ -271,10 +276,11 @@ export class Presence {
             this.behaviour.resume();
     }
 
-    /** The sprite was rescaled or the monitors changed: put her back where her state says. */
+    /** The sprite was rescaled, or the monitors or their work areas changed: put her back where her state says. */
     settle(): void {
         // A trip in progress ends where it was headed; a perch trip snaps to the window on arrival.
-        if (this.travelling)
+        // Her own crawl too: snapping her home mid-way would cut its slide, and with it the end of the crawl.
+        if (this.travelling || this.behaviour.isCrawling)
             return;
         switch (this.state) {
         case 'away':

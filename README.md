@@ -242,7 +242,10 @@ gnome-extensions prefs crepe@aceep.github.io
   switches for crawling and talking, a way to send her off-screen ("Se
   cacher") and one to hide her completely.
 - You can drag her anywhere on the primary monitor. She remembers the
-  spot across logouts and crawls at that height.
+  spot across logouts and crawls at that height; logged out mid-crawl,
+  she comes back where the crawl stopped. A change of the desktop's
+  scale, of the monitors or of their work area (a panel or a dock
+  coming or going) puts her back at her spot within the new bounds.
 
 ## Tenues
 

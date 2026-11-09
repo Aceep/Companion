@@ -39,19 +39,22 @@ export type Side = 'left' | 'right';
 export class Positioner {
     private readonly sprite: CrepeSprite;
     private readonly settings: CrepeSettings;
-    private readonly monitorsHandlerId: number;
     private detached = false;
 
+    /** Monitor and work-area changes are the presence's to follow: only it knows whether she is home. */
     constructor(sprite: CrepeSprite, settings: CrepeSettings) {
         this.sprite = sprite;
         this.settings = settings;
-        this.monitorsHandlerId = Main.layoutManager.connect('monitors-changed', () => this.place());
         this.place();
     }
 
+    /**
+     * Stops any move without remembering where it stopped: a disable with
+     * nothing moving writes nothing. Whoever means "stop here and keep
+     * this spot" calls `cancelMove()` first.
+     */
     destroy(): void {
-        Main.layoutManager.disconnect(this.monitorsHandlerId);
-        this.cancelMove();
+        this.sprite.actor.remove_all_transitions();
     }
 
     /** Puts her at the stored fractions of the work area, unless she is detached from them. */

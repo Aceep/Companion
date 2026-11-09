@@ -150,6 +150,8 @@ export default class CrepeExtension extends Extension {
     private reminders: ReminderCenter | null = null;
     private ink: InkSplatter | null = null;
     private trackGate: TrackGate | null = null;
+    private themeContext: St.ThemeContext | null = null;
+    private themeScaleHandlerId: number | null = null;
 
     override enable(): void {
         const settings = new CrepeSettings(this.getSettings());
@@ -368,10 +370,11 @@ export default class CrepeExtension extends Extension {
             this.newWindows = new NewWindowWatcher(frame => this.pointAtWindow(frame));
 
             settings.onChanged('visible', () => this.applyVisibility());
-            settings.onChanged('scale', () => {
-                sprite.setScale(settings.scale * this.themeScale());
-                presence.settle();
-            });
+            settings.onChanged('scale', () => this.rescale());
+            // Her size is the setting times the desktop's own scale, which can change under her too.
+            const themeContext = St.ThemeContext.get_for_stage(global.stage as Clutter.Stage);
+            this.themeContext = themeContext;
+            this.themeScaleHandlerId = themeContext.connect('notify::scale-factor', () => this.rescale());
             settings.onChanged('sleep-after-minutes', () => behaviour.refresh());
             settings.onChanged('crawl', () => behaviour.refresh());
             settings.onChanged('crawl-interval-minutes', () => behaviour.refresh());
@@ -499,6 +502,10 @@ export default class CrepeExtension extends Extension {
         this.desktopNotifications = null;
         this.cancelMuteOffer?.();
         this.cancelMuteOffer = null;
+        if (this.themeContext && this.themeScaleHandlerId !== null)
+            this.themeContext.disconnect(this.themeScaleHandlerId);
+        this.themeScaleHandlerId = null;
+        this.themeContext = null;
 
         this.drag?.destroy();
         this.drag = null;
@@ -512,6 +519,11 @@ export default class CrepeExtension extends Extension {
         this.dodger?.stop();
         this.dodger = null;
 
+        // Disabled mid-crawl (a logout), she stays where she stopped and that is her spot next time,
+        // rather than being snapped back to where the crawl began. A trip she was sent on is not
+        // hers to remember: the positioner ignores it while detached.
+        if (this.behaviour?.isCrawling)
+            this.positioner?.cancelMove();
         // Gives the sprite back to the positioner, so it has to go before the behaviour stops.
         this.presence?.destroy();
         this.presence = null;
@@ -1378,6 +1390,15 @@ export default class CrepeExtension extends Extension {
             sleeping: behaviour.isAsleep,
             recollection: behaviour.recollection,
         });
+    }
+
+    /** The scale setting or the desktop's scale changed. */
+    private rescale(): void {
+        const {settings, sprite, presence} = this;
+        if (!settings || !sprite || !presence)
+            return;
+        sprite.setScale(settings.scale * this.themeScale());
+        presence.settle();
     }
 
     private themeScale(): number {
