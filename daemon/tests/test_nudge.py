@@ -7,7 +7,7 @@ from unittest import mock
 
 from crepe_daemon import nudge as nudge_module
 from crepe_daemon.brain import Brain, FakeBackend
-from crepe_daemon.config import Config, GitConfig, IcsConfig, MachineConfig, RedmineConfig
+from crepe_daemon.config import Config, GitConfig, IcsConfig, MachineConfig, SpotifyConfig
 from crepe_daemon.memory import DailyCounter, Memory
 from crepe_daemon.nudge import KINDS, MAX_TEXT_CHARS, Nudger, clip_text
 from crepe_daemon.service import BrainService
@@ -74,9 +74,9 @@ class StatusWatchersTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ, {"XDG_STATE_HOME": directory}):
             state_dir = Path(directory)
             brain = Brain(Config(), FakeBackend(), Memory(state_dir), DailyCounter(state_dir))
-            pool = WatcherPool([SimpleNamespace(name="gitlab"), SimpleNamespace(name="redmine")])
+            pool = WatcherPool([SimpleNamespace(name="git"), SimpleNamespace(name="ics")])
             status = BrainService(brain, fake=True, key_lookup=lambda: None, watchers=pool)._status()
-        self.assertEqual(status["watchers"].unpack(), ["gitlab", "redmine"])
+        self.assertEqual(status["watchers"].unpack(), ["git", "ics"])
 
     def test_no_watchers_gives_an_empty_list(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -89,14 +89,14 @@ class StatusWatchersTest(unittest.TestCase):
 class BuildWatchersTest(unittest.TestCase):
     def test_every_configured_watcher_is_built_in_order(self):
         config = Config(
-            redmine=RedmineConfig(url="https://rm.example.com"),
             git=GitConfig(paths=("/nowhere",)),
             machine=MachineConfig(),
             ics=IcsConfig(url="https://example.com/c.ics"),
+            spotify=SpotifyConfig(client_id="abc"),
         )
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ, {"TZ": "UTC"}):
             pool = build_watchers(config, lambda kind, text: None, state=StateStore(Path(directory)), transport=object())
-        self.assertEqual(pool.names, ["redmine", "git", "machine", "ics"])
+        self.assertEqual(pool.names, ["git", "machine", "ics", "spotify"])
 
 
 if __name__ == "__main__":

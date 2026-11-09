@@ -118,13 +118,13 @@ timeout like `Upstream`.
 
 ## Watchers
 
-Added with the GitLab and Redmine watchers, extended with the git, machine and ICS ones; the methods above are unchanged.
+Added with the git, machine, ICS and Spotify watchers; the methods above are unchanged.
 
 ### `Status()` key
 
 | Key | Type | Meaning |
 |---|---|---|
-| `watchers` | `as` | Names of the configured watchers (`gitlab`, `redmine`, `git`, `machine`, `ics`), in that order. A watcher waiting for its token is listed too |
+| `watchers` | `as` | Names of the configured watchers (`git`, `machine`, `ics`, `spotify`), in that order. A watcher waiting for its token is listed too |
 
 ### Calls the daemon makes
 
@@ -144,19 +144,25 @@ The daemon calls the extension, never the other way round for watchers:
 
 | Kind | Sent by | `text` |
 |---|---|---|
-| `pipeline_echec` | `gitlab` | `<project name> · <ref>`; at most one per project per look |
-| `ticket_nouveau` | `redmine` | `#<id> <subject>`, subject cut to 40 characters; at most two per look |
-| `tickets_ouverts` | `redmine` | The open issue count as decimal digits, e.g. `"7"`; sent on the first look ever, when the count changes, and at the first look after 07:00 each day |
 | `travail_non_commite` | `git` | `<repo> · <n> fichiers · <h> h` (or `· 45 min` under an hour) for uncommitted changes, `<repo> · <n> commits pas poussés` for commits ahead of the upstream; once per repo per `nag_after_minutes`, at most two per look |
 | `machine` | `machine` | `disque <mount> <pct> %`, `batterie <pct> %` or `machine à genoux depuis <n> min` |
 | `agenda` | `ics` | `<summary> dans <n> min` for an event about to start, `<summary> aujourd'hui` for an all-day event (first look after 07:00); once per event, at most two per look |
 
 `text` is one line of at most 60 characters (longer text is cut with `…`).
 The extension accepts one nudge per kind every 5 s, so the daemon spaces
-nudges of the same kind by 5.5 s. The first look of a watcher, ever, only
-records what exists: it sends no `pipeline_echec` or `ticket_nouveau`. The
-`git`, `machine` and `ics` watchers report a current state, not past events,
-so their first look may nudge.
+nudges of the same kind by 5.5 s. The `git`, `machine` and `ics` watchers
+report a current state, not past events, so their first look may nudge.
+
+### Kinds for scripts
+
+No watcher of the daemon sends these; the extension accepts them from any
+caller, e.g. a CI job or a script polling a forge or a tracker:
+
+| Kind | `text` |
+|---|---|
+| `pipeline_echec` | `<project name> · <ref>` |
+| `ticket_nouveau` | `#<id> <subject>` |
+| `tickets_ouverts` | The open issue count as decimal digits, e.g. `"7"`; the extension keeps a plain number for her greetings |
 
 ### Kinds sent by the terminal hook
 

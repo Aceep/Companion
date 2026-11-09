@@ -5,7 +5,7 @@ import logging
 import threading
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable
 
 from gi.repository import GLib
 
@@ -18,7 +18,6 @@ FIRST_DELAY_S = 30
 # Past this many failures in a row, every further failure doubles the interval.
 FAILURES_BEFORE_BACKOFF = 3
 MAX_BACKOFF_INTERVAL_S = 3600
-MAX_SEEN_IDS = 200
 
 Nudge = tuple[str, str]
 NudgeSender = Callable[[str, str], None]
@@ -51,17 +50,6 @@ class StateStore:
         with self._lock:
             self._data[name] = copy.deepcopy(section)
             atomic_write_json(self.path, self._data)
-
-
-def remember_ids(seen: list[int], new_ids: Iterable[int], limit: int = MAX_SEEN_IDS) -> list[int]:
-    """`seen` plus the ids not in it yet, keeping only the `limit` most recently added."""
-    known = set(seen)
-    merged = list(seen)
-    for item_id in new_ids:
-        if item_id not in known:
-            known.add(item_id)
-            merged.append(item_id)
-    return merged[-limit:]
 
 
 def schedule_with_glib(delay_s: float, callback: Callable[[], None]) -> None:

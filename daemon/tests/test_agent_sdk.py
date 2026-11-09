@@ -415,7 +415,7 @@ class IsolationCheckTest(AgentTestCase):
         self.assert_refused(self.init_with(tools=["Bash"]))
 
     def test_an_mcp_server_is_a_leak(self):
-        self.assert_refused(self.init_with(mcp_servers=[{"name": "gitlab", "status": "connected"}]))
+        self.assert_refused(self.init_with(mcp_servers=[{"name": "some-server", "status": "connected"}]))
 
     def test_a_plugin_from_disk_is_a_leak(self):
         self.assert_refused(self.init_with(plugins=[{"name": "dsi", "path": "/home/a/.claude/plugins/dsi"}]))

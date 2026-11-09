@@ -24,25 +24,6 @@ remarks = false
 max_reply_chars = 160
 
 # Watchers ("guetteurs"): each one runs only when its section is present.
-# The GitLab and Redmine tokens go to the keyring, never here:
-#   python -m crepe_daemon --set-token gitlab    (a read_api token)
-#   python -m crepe_daemon --set-token redmine   (your API key, "My account")
-
-# Failed pipelines you triggered -> nudge "pipeline_echec".
-# [watchers.gitlab]
-# url = "https://gitlab.example.com"
-# Minutes between looks (minimum 1).
-# interval_minutes = 5
-# Paths with namespace. Without it: the 30 most recently active projects
-# you are a member of.
-# projects = ["team/app", "team/infra"]
-# false: nudge for failed pipelines of anyone, not only yours.
-# only_mine = true
-
-# Open issues assigned to you -> nudges "ticket_nouveau" and "tickets_ouverts".
-# [watchers.redmine]
-# url = "https://redmine.example.com"
-# interval_minutes = 10
 
 # Work left uncommitted or unpushed in local repos -> nudge "travail_non_commite".
 # git runs read-only (git status, git rev-list); nothing is fetched or written.

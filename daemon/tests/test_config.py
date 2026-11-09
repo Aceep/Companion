@@ -8,10 +8,8 @@ from crepe_daemon.config import (
     Config,
     ConfigError,
     GitConfig,
-    GitlabConfig,
     IcsConfig,
     MachineConfig,
-    RedmineConfig,
     default_config_path,
     load_config,
     parse_config,
@@ -81,65 +79,40 @@ class ConfigTest(unittest.TestCase):
 class WatcherConfigTest(unittest.TestCase):
     def test_no_section_means_no_watcher(self):
         config = parse_config({})
-        self.assertIsNone(config.gitlab)
-        self.assertIsNone(config.redmine)
-
-    def test_sections_with_defaults(self):
-        config = parse_config(
-            {"watchers": {"gitlab": {"url": "https://gitlab.example.com/"}, "redmine": {"url": "https://rm.example.com"}}}
-        )
-        self.assertEqual(config.gitlab, GitlabConfig(url="https://gitlab.example.com", interval_minutes=5))
-        self.assertEqual(config.redmine, RedmineConfig(url="https://rm.example.com", interval_minutes=10))
-        self.assertTrue(config.gitlab.only_mine)
-
-    def test_gitlab_values_from_toml(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "daemon.toml"
-            path.write_text(
-                '[watchers.gitlab]\nurl = "https://gitlab.example.com"\ninterval_minutes = 15\n'
-                'projects = ["team/crepe"]\nonly_mine = false\n'
-            )
-            config = load_config(path)
-        self.assertEqual(
-            config.gitlab,
-            GitlabConfig(url="https://gitlab.example.com", interval_minutes=15, projects=("team/crepe",), only_mine=False),
-        )
+        self.assertEqual((config.git, config.machine, config.ics, config.spotify), (None, None, None, None))
 
     def test_missing_url_is_rejected(self):
         with self.assertRaises(ConfigError):
-            parse_config({"watchers": {"redmine": {}}})
-
-    def test_non_http_url_is_rejected(self):
-        with self.assertRaises(ConfigError):
-            parse_config({"watchers": {"gitlab": {"url": "gitlab.example.com"}}})
-
-    def test_projects_must_be_strings(self):
-        with self.assertRaises(ConfigError):
-            parse_config({"watchers": {"gitlab": {"url": "https://g.example.com", "projects": [3]}}})
+            parse_config({"watchers": {"ics": {}}})
 
     def test_sub_minute_interval_is_rejected_outside_dev_mode(self):
         with self.assertRaises(ConfigError):
-            parse_config({"watchers": {"redmine": {"url": "https://rm.example.com", "interval_minutes": 0.1}}})
+            parse_config({"watchers": {"machine": {"interval_minutes": 0.1}}})
 
     def test_dev_mode_allows_short_intervals(self):
-        raw = {"watchers": {"redmine": {"url": "https://rm.example.com", "interval_minutes": 0.05}}}
-        self.assertEqual(parse_config(raw, dev=True).redmine.interval_minutes, 0.05)
+        raw = {"watchers": {"machine": {"interval_minutes": 0.05}}}
+        self.assertEqual(parse_config(raw, dev=True).machine.interval_minutes, 0.05)
         with self.assertRaises(ConfigError):
-            parse_config({"watchers": {"redmine": {"url": "https://rm.example.com", "interval_minutes": 0.01}}}, dev=True)
+            parse_config({"watchers": {"machine": {"interval_minutes": 0.01}}}, dev=True)
 
     def test_dev_mode_comes_from_crepe_dev(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ, {"CREPE_DEV": "1"}):
             path = Path(directory) / "daemon.toml"
-            path.write_text('[watchers.redmine]\nurl = "https://rm.example.com"\ninterval_minutes = 0.1\n')
-            self.assertEqual(load_config(path).redmine.interval_minutes, 0.1)
+            path.write_text("[watchers.machine]\ninterval_minutes = 0.1\n")
+            self.assertEqual(load_config(path).machine.interval_minutes, 0.1)
 
     def test_boolean_interval_is_rejected(self):
         with self.assertRaises(ConfigError):
-            parse_config({"watchers": {"redmine": {"url": "https://rm.example.com", "interval_minutes": True}}})
+            parse_config({"watchers": {"machine": {"interval_minutes": True}}})
 
     def test_unknown_watcher_is_ignored(self):
         with self.assertLogs("crepe_daemon.config", level="WARNING"):
             self.assertEqual(parse_config({"watchers": {"jira": {}}}), Config())
+
+    def test_former_gitlab_section_is_ignored_with_a_warning(self):
+        with self.assertLogs("crepe_daemon.config", level="WARNING") as logs:
+            self.assertEqual(parse_config({"watchers": {"gitlab": {"url": "https://gitlab.example.com"}}}), Config())
+        self.assertIn("gitlab", logs.output[0])
 
 
 class LocalWatcherConfigTest(unittest.TestCase):

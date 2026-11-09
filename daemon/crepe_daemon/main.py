@@ -1,4 +1,4 @@
-"""Command line entry point: run the service, or manage the API key and watcher tokens."""
+"""Command line entry point: run the service, or manage the API key and the tokens."""
 
 import argparse
 import getpass
@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     action.add_argument("--set-key", action="store_true", help="read an API key and store it in the keyring")
     action.add_argument("--forget-key", action="store_true", help="remove the API key from the keyring")
     action.add_argument(
-        "--set-token", choices=sorted(keyring.TOKENS), help="read a token (a watcher's, or the subscription's) and store it in the keyring"
+        "--set-token", choices=sorted(keyring.TOKENS), help="read a token (Spotify's, or the subscription's) and store it in the keyring"
     )
     action.add_argument("--forget-token", choices=sorted(keyring.TOKENS), help="remove a token from the keyring")
     action.add_argument("--login", choices=["spotify"], help="connect an account that needs a browser consent")
@@ -83,16 +83,8 @@ def forget_key() -> int:
     return 0
 
 
-TOKEN_PROMPTS = {
-    "gitlab": "GitLab token (read_api): ",
-    "redmine": "Redmine API key: ",
-    "spotify": "Spotify refresh token: ",
-    "claude": "Claude subscription token (from `claude setup-token`): ",
-}
-
-
 def set_token(name: str) -> int:
-    token = getpass.getpass(TOKEN_PROMPTS[name]).strip()
+    token = getpass.getpass(keyring.TOKENS[name].prompt).strip()
     if not token:
         print("No token given, nothing stored.", file=sys.stderr)
         return 1

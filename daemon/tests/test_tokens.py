@@ -37,7 +37,7 @@ class TokenTest(unittest.TestCase):
         patcher = mock.patch.object(keyring, "Secret", self.secret)
         patcher.start()
         self.addCleanup(patcher.stop)
-        environment = mock.patch.dict(os.environ, {"CREPE_GITLAB_TOKEN": "", "CREPE_REDMINE_KEY": "", "CREPE_SPOTIFY_REFRESH_TOKEN": "", "CREPE_CLAUDE_OAUTH_TOKEN": ""})
+        environment = mock.patch.dict(os.environ, {"CREPE_SPOTIFY_REFRESH_TOKEN": "", "CREPE_CLAUDE_OAUTH_TOKEN": ""})
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -51,14 +51,22 @@ class TokenTest(unittest.TestCase):
             return cli.main(list(argv))
 
     def test_set_token_stores_under_the_watcher_purpose(self):
-        self.assertEqual(self.run_cli("--set-token", "gitlab", typed=" glpat-abc \n"), 0)
-        self.assertEqual(self.secret.items["gitlab-token"], ("Crêpe GitLab token", "glpat-abc"))
-        self.assertEqual(keyring.lookup_token("gitlab"), "glpat-abc")
+        self.assertEqual(self.run_cli("--set-token", "spotify", typed=" refresh-abc \n"), 0)
+        self.assertEqual(self.secret.items["spotify-refresh-token"], ("Crêpe Spotify refresh token", "refresh-abc"))
+        self.assertEqual(keyring.lookup_token("spotify"), "refresh-abc")
 
-    def test_redmine_key_has_its_own_purpose(self):
-        self.run_cli("--set-token", "redmine", typed="rm-key")
-        self.assertIn("redmine-key", self.secret.items)
-        self.assertIsNone(keyring.lookup_token("gitlab"))
+    def test_set_token_prompts_with_the_token_own_prompt(self):
+        with (
+            mock.patch("getpass.getpass", return_value="oat-abc") as getpass,
+            mock.patch("logging.basicConfig"),
+            redirect_stdout(io.StringIO()),
+        ):
+            cli.main(["--set-token", "claude"])
+        getpass.assert_called_once_with(keyring.TOKENS["claude"].prompt)
+
+    def test_each_token_has_its_own_purpose(self):
+        self.run_cli("--set-token", "spotify", typed="refresh-abc")
+        self.assertIsNone(keyring.lookup_token("claude"))
 
     def test_spotify_refresh_token_has_its_own_purpose_and_can_be_forgotten(self):
         keyring.store_token("spotify", "refresh-abc")
@@ -99,26 +107,30 @@ class TokenTest(unittest.TestCase):
 
     def test_empty_input_stores_nothing(self):
         with mock.patch("sys.stderr", io.StringIO()):
-            self.assertEqual(self.run_cli("--set-token", "gitlab", typed="  "), 1)
+            self.assertEqual(self.run_cli("--set-token", "spotify", typed="  "), 1)
         self.assertEqual(self.secret.items, {})
 
     def test_forget_token_removes_it(self):
-        self.run_cli("--set-token", "redmine", typed="rm-key")
-        self.assertEqual(self.run_cli("--forget-token", "redmine"), 0)
-        self.assertIsNone(keyring.lookup_token("redmine"))
+        self.run_cli("--set-token", "spotify", typed="refresh-abc")
+        self.assertEqual(self.run_cli("--forget-token", "spotify"), 0)
+        self.assertIsNone(keyring.lookup_token("spotify"))
 
     def test_api_key_is_untouched_by_tokens(self):
-        self.run_cli("--set-token", "gitlab", typed="glpat-abc")
+        self.run_cli("--set-token", "spotify", typed="refresh-abc")
         self.assertNotIn("api-key", self.secret.items)
 
     def test_env_override_wins_over_the_keyring(self):
-        self.run_cli("--set-token", "gitlab", typed="from-keyring")
-        with mock.patch.dict(os.environ, {"CREPE_GITLAB_TOKEN": "from-env"}):
-            self.assertEqual(keyring.lookup_token("gitlab"), "from-env")
+        self.run_cli("--set-token", "spotify", typed="from-keyring")
+        with mock.patch.dict(os.environ, {"CREPE_SPOTIFY_REFRESH_TOKEN": "from-env"}):
+            self.assertEqual(keyring.lookup_token("spotify"), "from-env")
 
     def test_unknown_watcher_name_is_refused(self):
         with self.assertRaises(SystemExit), mock.patch("sys.stderr", io.StringIO()):
             self.run_cli("--set-token", "jira")
+
+    def test_removed_gitlab_token_name_is_refused(self):
+        with self.assertRaises(SystemExit), mock.patch("sys.stderr", io.StringIO()):
+            self.run_cli("--set-token", "gitlab")
 
 
 if __name__ == "__main__":

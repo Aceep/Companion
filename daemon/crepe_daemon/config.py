@@ -18,8 +18,6 @@ DEFAULT_DAILY_BUDGET = 200
 DEFAULT_MAX_REPLY_CHARS = 160
 # Below this a reply cannot even hold one of her short lines plus an ellipsis.
 MIN_REPLY_CHARS = 20
-DEFAULT_GITLAB_INTERVAL_MINUTES = 5
-DEFAULT_REDMINE_INTERVAL_MINUTES = 10
 DEFAULT_GIT_INTERVAL_MINUTES = 30
 DEFAULT_GIT_NAG_AFTER_MINUTES = 120
 DEFAULT_MACHINE_INTERVAL_MINUTES = 5
@@ -45,21 +43,6 @@ DEV_ENV_VAR = "CREPE_DEV"
 
 class ConfigError(Exception):
     pass
-
-
-@dataclass(frozen=True)
-class GitlabConfig:
-    url: str
-    interval_minutes: float = DEFAULT_GITLAB_INTERVAL_MINUTES
-    # Paths with namespace; empty means the projects the user is a member of.
-    projects: tuple[str, ...] = ()
-    only_mine: bool = True
-
-
-@dataclass(frozen=True)
-class RedmineConfig:
-    url: str
-    interval_minutes: float = DEFAULT_REDMINE_INTERVAL_MINUTES
 
 
 @dataclass(frozen=True)
@@ -111,8 +94,6 @@ class Config:
     remarks: bool = False
     max_reply_chars: int = DEFAULT_MAX_REPLY_CHARS
     # A watcher runs only when its config section exists.
-    gitlab: GitlabConfig | None = None
-    redmine: RedmineConfig | None = None
     git: GitConfig | None = None
     machine: MachineConfig | None = None
     ics: IcsConfig | None = None
@@ -169,7 +150,7 @@ def parse_config(raw: dict, dev: bool = False) -> Config:
     watchers = raw.get("watchers", {})
     if not isinstance(watchers, dict):
         raise ConfigError("watchers must be a table")
-    for key in sorted(set(watchers) - {"gitlab", "redmine", "git", "machine", "ics", "spotify"}):
+    for key in sorted(set(watchers) - {"git", "machine", "ics", "spotify"}):
         log.warning("ignoring unknown watcher %r", key)
     min_interval = DEV_MIN_INTERVAL_MINUTES if dev else MIN_INTERVAL_MINUTES
 
@@ -179,36 +160,10 @@ def parse_config(raw: dict, dev: bool = False) -> Config:
         daily_budget=daily_budget,
         remarks=remarks,
         max_reply_chars=max_reply_chars,
-        gitlab=_parse_gitlab(watchers["gitlab"], min_interval) if "gitlab" in watchers else None,
-        redmine=_parse_redmine(watchers["redmine"], min_interval) if "redmine" in watchers else None,
         git=_parse_git(watchers["git"], min_interval) if "git" in watchers else None,
         machine=_parse_machine(watchers["machine"], min_interval) if "machine" in watchers else None,
         ics=_parse_ics(watchers["ics"], dev) if "ics" in watchers else None,
         spotify=_parse_spotify(watchers["spotify"], dev) if "spotify" in watchers else None,
-    )
-
-
-def _parse_gitlab(raw: object, min_interval: float) -> GitlabConfig:
-    section = _watcher_section(raw, "gitlab", {"url", "interval_minutes", "projects", "only_mine"})
-    projects = section.get("projects", [])
-    if not isinstance(projects, list) or not all(isinstance(path, str) and path.strip() for path in projects):
-        raise ConfigError("watchers.gitlab.projects must be a list of non-empty strings")
-    only_mine = section.get("only_mine", True)
-    if not isinstance(only_mine, bool):
-        raise ConfigError("watchers.gitlab.only_mine must be true or false")
-    return GitlabConfig(
-        url=_parse_url(section, "gitlab"),
-        interval_minutes=_parse_interval(section, "gitlab", DEFAULT_GITLAB_INTERVAL_MINUTES, min_interval),
-        projects=tuple(path.strip().strip("/") for path in projects),
-        only_mine=only_mine,
-    )
-
-
-def _parse_redmine(raw: object, min_interval: float) -> RedmineConfig:
-    section = _watcher_section(raw, "redmine", {"url", "interval_minutes"})
-    return RedmineConfig(
-        url=_parse_url(section, "redmine"),
-        interval_minutes=_parse_interval(section, "redmine", DEFAULT_REDMINE_INTERVAL_MINUTES, min_interval),
     )
 
 
@@ -245,13 +200,9 @@ def _parse_machine(raw: object, min_interval: float) -> MachineConfig:
 def _parse_ics(raw: object, dev: bool) -> IcsConfig:
     # token_purpose is accepted for symmetry with the other watchers; the secret lives in the URL.
     section = _watcher_section(raw, "ics", {"url", "interval_minutes", "warn_minutes", "token_purpose"})
-    url = section.get("url")
-    if not isinstance(url, str) or not url.strip().startswith(("https://", "http://")):
-        raise ConfigError("watchers.ics.url must be an http(s) URL")
     min_interval = DEV_MIN_INTERVAL_MINUTES if dev else MIN_ICS_INTERVAL_MINUTES
     return IcsConfig(
-        # Not stripped of a trailing slash: the published link must be used verbatim.
-        url=url.strip(),
+        url=_parse_url(section, "ics"),
         interval_minutes=_parse_interval(section, "ics", DEFAULT_ICS_INTERVAL_MINUTES, min_interval),
         warn_minutes=_parse_number(section, "ics", "warn_minutes", DEFAULT_ICS_WARN_MINUTES, 1),
     )
@@ -307,7 +258,8 @@ def _parse_url(section: dict, name: str) -> str:
     url = section.get("url")
     if not isinstance(url, str) or not url.strip().startswith(("https://", "http://")):
         raise ConfigError(f"watchers.{name}.url must be an http(s) URL")
-    return url.strip().rstrip("/")
+    # Not stripped of a trailing slash: a published link must be used verbatim.
+    return url.strip()
 
 
 def _parse_interval(section: dict, name: str, default: float, minimum: float) -> float:

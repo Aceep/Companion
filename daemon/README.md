@@ -162,25 +162,19 @@ message in the journal. Restart the unit after editing it.
 
 ## Guetteurs
 
-Optional watchers that poll your forge, your tracker, your local repos,
-this machine, a published calendar and Spotify, and nudge her (method `Nudge` of the
+Optional watchers that poll your local repos, this machine, a published
+calendar and Spotify, and nudge her (method `Nudge` of the
 extension, see [PROTOCOL.md](PROTOCOL.md#watchers)) when something happens. Each one runs only when its section exists in
 `daemon.toml`; see [daemon.example.toml](daemon.example.toml).
 
 | Section | Polls | Every | Nudges |
 |---|---|---|---|
-| `[watchers.gitlab]` | Failed pipelines you triggered, in the `projects` listed or else the 30 most recently active projects you are a member of | `interval_minutes`, default 5 | `pipeline_echec` `<project> · <ref>`, at most one per project per look |
-| `[watchers.redmine]` | Open issues assigned to you | `interval_minutes`, default 10 | `ticket_nouveau` `#<id> <subject>` (two per look at most), `tickets_ouverts` `<count>` when the count changes and once a day at the first look after 07:00 |
 | `[watchers.git]` | `git status` and commits ahead of the upstream in local repos | `interval_minutes`, default 30 | `travail_non_commite` `<repo> · <n> fichiers · <h> h` or `<repo> · <n> commits pas poussés`, once per repo per `nag_after_minutes`, two per look at most |
 | `[watchers.machine]` | Disk usage, battery, load average | `interval_minutes`, default 5 | `machine` `disque <mount> <pct> %`, `batterie <pct> %`, `machine à genoux depuis <n> min` |
 | `[watchers.ics]` | A published calendar link (ICS) | `interval_minutes`, default 15 | `agenda` `<summary> dans <n> min`, or `<summary> aujourd'hui` for an all-day event at the first look after 07:00; two per look at most |
 | `[watchers.spotify]` | What you are playing, from Spotify's Web API | `interval_seconds`, default 30 (`idle_interval_seconds`, default 120, after 10 min of silence) | `musique` `<title> — <artists>` on each new track, `musique_fin` `<n> min` when playback stops after 20 min or more of listening |
 
-Keys of `[watchers.gitlab]`: `url` (required, e.g. `https://gitlab.example.com`),
-`interval_minutes`, `projects` (list of paths with namespace, e.g.
-`["team/app"]`), `only_mine` (default `true`; `false` nudges for anyone's
-failed pipelines). `[watchers.redmine]`: `url` (required) and
-`interval_minutes`. The minimum interval is 1 minute (5 for `ics`).
+The minimum `interval_minutes` is 1 minute (5 for `ics`).
 
 `[watchers.git]`: `paths` (required; each one a repo, or a folder whose
 direct children are repos, 50 repos at most, `~` allowed),
@@ -220,30 +214,20 @@ episode gives no nudge and counts as a stop. The track playing when the
 daemon starts is not announced. A 429 is waited out for the `Retry-After` it
 gives (an hour for a quota error) without counting as a failure.
 
-The first look waits 30 s after start, so login stays quiet, and the very
-first look ever only records what exists: no nudge for old failures or
-issues, only the Redmine count. The git, machine and ICS watchers report a
-current state rather than past events, so their first look may nudge. After three failed looks in a row (network,
+The first look waits 30 s after start, so login stays quiet. The git,
+machine and ICS watchers report a current state rather than past events, so
+their first look may nudge. After three failed looks in a row (network,
 HTTP error, rejected token) the interval doubles at each further failure, up
 to one hour, and goes back to normal at the next success. The journal says
 why it failed.
 
-Tokens, in the keyring like the API key (attribute `purpose = gitlab-token`
-`redmine-key` or `spotify-refresh-token`):
-
-```sh
-../daemon-venv/bin/python -m crepe_daemon --set-token gitlab     # personal access token, scope read_api
-../daemon-venv/bin/python -m crepe_daemon --set-token redmine    # your API key, Redmine "My account" page
-../daemon-venv/bin/python -m crepe_daemon --forget-token gitlab
-```
-
 The git, machine and ICS watchers need no token; Spotify has its own
-login (below). A GitLab or Redmine
-watcher without its token logs it once and stays idle; it checks the
-keyring again at every look, so no restart is needed after `--set-token`.
-`CREPE_GITLAB_TOKEN` and `CREPE_REDMINE_KEY`, when set and non-empty, win
-over the keyring (meant for tests). `--status` lists the configured watchers
-and whether the extension answers.
+login (below), which stores its token in the keyring like the API key.
+`--status` lists the configured watchers and whether the extension answers.
+
+The kinds `pipeline_echec`, `ticket_nouveau` and `tickets_ouverts` have no
+watcher in the daemon: a CI job or a script of yours can send them, see
+[Depuis un script](#depuis-un-script).
 
 ### Spotify
 
@@ -298,15 +282,9 @@ your Spotify account, or the password changed), the journal says to run
 restarted. `CREPE_SPOTIFY_REFRESH_TOKEN`, when set, wins over the keyring
 (meant for tests).
 
-Privacy: the watchers call only these endpoints, with your token in a header
-(`PRIVATE-TOKEN` for GitLab, `X-Redmine-API-Key` for Redmine), and never
-follow a redirect (it would replay the token elsewhere):
+Privacy: the watchers call only these endpoints, and never follow a
+redirect (it would replay a token, or the secret of a link, elsewhere):
 
-- GitLab: `GET /api/v4/user` (your username, once per run),
-  `GET /api/v4/projects?membership=true&simple=true&per_page=100&order_by=last_activity_at`
-  (or `GET /api/v4/projects/<path>` once per configured project), and
-  `GET /api/v4/projects/<id>/pipelines?status=failed&updated_after=…&username=…&per_page=20`;
-- Redmine: `GET /issues.json?assigned_to_id=me&status_id=open&limit=100&sort=updated_on:desc`;
 - Spotify: `GET https://api.spotify.com/v1/me/player/currently-playing` with
   the access token in the `Authorization` header, and `POST
   https://accounts.spotify.com/api/token` to renew it (the login also uses
@@ -325,8 +303,6 @@ and never runs a command from a repo's config; each call is cut off after
 and `/proc/loadavg`, nothing else.
 
 Nothing goes to the Anthropic API. Kept in `~/.local/state/crepe/watchers.json`:
-the last 200 pipeline ids and issue ids already seen, the time of the last
-GitLab look, the last open issue count and the day of the last morning count;
 for git, the path of each dirty or unpushed repo with since when and when
 it last nagged; for the machine, which mounts are over the threshold and
 when they last nudged; for ICS, the UID and start of the events announced

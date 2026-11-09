@@ -1,7 +1,8 @@
-"""The API key, the subscription token and the watcher tokens, kept in the desktop keyring through libsecret."""
+"""The API key, the subscription token and the Spotify token, kept in the desktop keyring through libsecret."""
 
 import logging
 import os
+from typing import NamedTuple
 
 import gi
 
@@ -20,14 +21,27 @@ SCHEMA = Secret.Schema.new(
 )
 
 
-# Other tokens: name on the command line -> (purpose attribute, env override, label).
+class Token(NamedTuple):
+    purpose: str
+    env_var: str
+    label: str
+    # What --set-token asks for.
+    prompt: str
+
+
+# Other tokens, by their name on the command line.
 TOKENS = {
-    "gitlab": ("gitlab-token", "CREPE_GITLAB_TOKEN", "Crêpe GitLab token"),
-    "redmine": ("redmine-key", "CREPE_REDMINE_KEY", "Crêpe Redmine API key"),
     # The OAuth refresh token, written by --login spotify and rotated by the watcher.
-    "spotify": ("spotify-refresh-token", "CREPE_SPOTIFY_REFRESH_TOKEN", "Crêpe Spotify refresh token"),
+    "spotify": Token(
+        "spotify-refresh-token", "CREPE_SPOTIFY_REFRESH_TOKEN", "Crêpe Spotify refresh token", "Spotify refresh token: "
+    ),
     # The subscription token from `claude setup-token`, for backend = "abonnement".
-    "claude": ("claude-oauth-token", "CREPE_CLAUDE_OAUTH_TOKEN", "Crêpe Claude subscription token"),
+    "claude": Token(
+        "claude-oauth-token",
+        "CREPE_CLAUDE_OAUTH_TOKEN",
+        "Crêpe Claude subscription token",
+        "Claude subscription token (from `claude setup-token`): ",
+    ),
 }
 
 
@@ -63,21 +77,19 @@ def clear_key() -> bool:
 
 
 def lookup_token(name: str) -> str | None:
-    """A named token ("gitlab", "redmine", "spotify" or "claude"): its env override if set, else the keyring."""
-    purpose, env_var, _label = TOKENS[name]
-    from_env = os.environ.get(env_var, "").strip()
-    return from_env or _lookup({"purpose": purpose})
+    """A named token ("spotify" or "claude"): its env override if set, else the keyring."""
+    token = TOKENS[name]
+    from_env = os.environ.get(token.env_var, "").strip()
+    return from_env or _lookup({"purpose": token.purpose})
 
 
 def store_token(name: str, token: str) -> None:
-    purpose, _env_var, label = TOKENS[name]
-    _store({"purpose": purpose}, label, token)
+    _store({"purpose": TOKENS[name].purpose}, TOKENS[name].label, token)
 
 
 def clear_token(name: str) -> bool:
     """Remove a stored token. True if there was one."""
-    purpose, _env_var, _label = TOKENS[name]
-    return _clear({"purpose": purpose})
+    return _clear({"purpose": TOKENS[name].purpose})
 
 
 def _lookup(attributes: dict) -> str | None:
