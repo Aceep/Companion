@@ -115,10 +115,14 @@ placeholder `(remarque spontanée)` for a remark) and her reply are.
 ## Concurrency and timing
 
 Requests are served one at a time, in arrival order; a second `Ask` sent
-while one runs waits its turn. A real API call usually takes one to a few
-seconds and is cut off after 20 s per attempt, with one retry, so use a D-Bus
-call timeout of about 60 s (more if you queue several calls), and treat a
-timeout like `Upstream`.
+while one runs waits its turn. A real call usually takes one to a few
+seconds. With the defaults it ends, answered or with `Upstream`, within
+about 40 s: with `backend = "api"` each attempt is cut off after
+`request_timeout_s` (20 s) and is retried once; with `backend = "abonnement"`
+the whole call is cut off after `agent_timeout_s` (40 s), plus a few seconds
+for the CLI to stop. The extension uses a D-Bus call timeout of 45 s; a
+caller should use at least that (more if it queues several calls, or if the
+config raises these timeouts), and treat a timeout like `Upstream`.
 
 ## Watchers
 

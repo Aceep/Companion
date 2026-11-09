@@ -23,6 +23,13 @@ remarks = false
 # Hard cap on reply length, in characters (minimum 20). The bubble is small.
 max_reply_chars = 160
 
+# Seconds before a request is cut off (1 to 300). The extension waits 45 s
+# for an answer, so keep a call under that.
+# backend = "api": per attempt, and a failed attempt is retried once.
+request_timeout_s = 20
+# backend = "abonnement": the whole call, the CLI then takes a few seconds to stop.
+agent_timeout_s = 40
+
 # Watchers ("guetteurs"): each one runs only when its section is present.
 
 # Work left uncommitted or unpushed in local repos -> nudge "travail_non_commite".

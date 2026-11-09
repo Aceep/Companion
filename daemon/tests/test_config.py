@@ -68,6 +68,28 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaises(ConfigError):
             parse_config({"max_reply_chars": 5})
 
+    def test_timeouts_default_under_the_extension_call_timeout(self):
+        config = parse_config({})
+        self.assertEqual((config.request_timeout_s, config.agent_timeout_s), (20, 40))
+
+    def test_timeouts_are_read_from_toml(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "daemon.toml"
+            path.write_text("request_timeout_s = 15\nagent_timeout_s = 30.5\n")
+            config = load_config(path)
+        self.assertEqual((config.request_timeout_s, config.agent_timeout_s), (15.0, 30.5))
+
+    def test_out_of_range_timeout_is_rejected(self):
+        for key in ("request_timeout_s", "agent_timeout_s"):
+            for value in (0, 0.5, 301, float("inf")):
+                with self.subTest(key=key, value=value), self.assertRaisesRegex(ConfigError, key):
+                    parse_config({key: value})
+
+    def test_non_numeric_timeout_is_rejected(self):
+        for value in (True, "40", None):
+            with self.subTest(value=value), self.assertRaises(ConfigError):
+                parse_config({"agent_timeout_s": value})
+
     def test_broken_toml_is_an_error(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "daemon.toml"

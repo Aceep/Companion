@@ -18,6 +18,13 @@ DEFAULT_DAILY_BUDGET = 200
 DEFAULT_MAX_REPLY_CHARS = 160
 # Below this a reply cannot even hold one of her short lines plus an ellipsis.
 MIN_REPLY_CHARS = 20
+# The extension gives up on a call after 45 s. An API request may be tried
+# twice (one retry), so 20 s each; a subscription call runs once, and its CLI
+# needs a few seconds to stop once cut off.
+DEFAULT_REQUEST_TIMEOUT_S = 20.0
+DEFAULT_AGENT_TIMEOUT_S = 40.0
+MIN_TIMEOUT_S = 1
+MAX_TIMEOUT_S = 300
 DEFAULT_GIT_INTERVAL_MINUTES = 30
 DEFAULT_GIT_NAG_AFTER_MINUTES = 120
 DEFAULT_MACHINE_INTERVAL_MINUTES = 5
@@ -93,6 +100,10 @@ class Config:
     daily_budget: int = DEFAULT_DAILY_BUDGET
     remarks: bool = False
     max_reply_chars: int = DEFAULT_MAX_REPLY_CHARS
+    # Per attempt of an API request (backend "api").
+    request_timeout_s: float = DEFAULT_REQUEST_TIMEOUT_S
+    # Whole subscription call (backend "abonnement").
+    agent_timeout_s: float = DEFAULT_AGENT_TIMEOUT_S
     # A watcher runs only when its config section exists.
     git: GitConfig | None = None
     machine: MachineConfig | None = None
@@ -123,7 +134,16 @@ def load_config(path: Path | None = None) -> Config:
 
 
 def parse_config(raw: dict, dev: bool = False) -> Config:
-    known = {"backend", "model", "daily_budget", "remarks", "max_reply_chars", "watchers"}
+    known = {
+        "backend",
+        "model",
+        "daily_budget",
+        "remarks",
+        "max_reply_chars",
+        "request_timeout_s",
+        "agent_timeout_s",
+        "watchers",
+    }
     for key in sorted(set(raw) - known):
         log.warning("ignoring unknown config key %r", key)
 
@@ -147,6 +167,9 @@ def parse_config(raw: dict, dev: bool = False) -> Config:
     if not _is_int(max_reply_chars) or max_reply_chars < MIN_REPLY_CHARS:
         raise ConfigError(f"max_reply_chars must be an integer >= {MIN_REPLY_CHARS}")
 
+    request_timeout_s = _parse_timeout(raw, "request_timeout_s", DEFAULT_REQUEST_TIMEOUT_S)
+    agent_timeout_s = _parse_timeout(raw, "agent_timeout_s", DEFAULT_AGENT_TIMEOUT_S)
+
     watchers = raw.get("watchers", {})
     if not isinstance(watchers, dict):
         raise ConfigError("watchers must be a table")
@@ -160,6 +183,8 @@ def parse_config(raw: dict, dev: bool = False) -> Config:
         daily_budget=daily_budget,
         remarks=remarks,
         max_reply_chars=max_reply_chars,
+        request_timeout_s=request_timeout_s,
+        agent_timeout_s=agent_timeout_s,
         git=_parse_git(watchers["git"], min_interval) if "git" in watchers else None,
         machine=_parse_machine(watchers["machine"], min_interval) if "machine" in watchers else None,
         ics=_parse_ics(watchers["ics"], dev) if "ics" in watchers else None,
@@ -227,6 +252,13 @@ def _parse_spotify(raw: object, dev: bool) -> SpotifyConfig:
     return SpotifyConfig(
         client_id=client_id.strip(), redirect_port=port, interval_seconds=interval, idle_interval_seconds=idle_interval
     )
+
+
+def _parse_timeout(raw: dict, key: str, default: float) -> float:
+    value = raw.get(key, default)
+    if not _is_number(value) or not math.isfinite(value) or not MIN_TIMEOUT_S <= value <= MAX_TIMEOUT_S:
+        raise ConfigError(f"{key} must be a number of seconds between {MIN_TIMEOUT_S} and {MAX_TIMEOUT_S}")
+    return float(value)
 
 
 def _parse_path_list(section: dict, name: str, key: str, default: tuple[str, ...]) -> tuple[str, ...]:

@@ -17,12 +17,11 @@ from pathlib import Path
 from typing import Callable
 
 from .brain import Refused
+from .config import DEFAULT_AGENT_TIMEOUT_S
 from .errors import NoKeyError, UpstreamError
 
 log = logging.getLogger(__name__)
 
-# The CLI starts a process and a TLS session per call; well past this the moment has passed.
-AGENT_TIMEOUT_S = 60.0
 MAX_TURNS = 1
 # How long to wait for the CLI subprocess to be stopped once a call is over.
 CLEANUP_TIMEOUT_S = 5.0
@@ -217,7 +216,7 @@ class AgentSdkBackend:
         model: str,
         token_provider: Callable[[], str | None],
         directories: AgentDirectories | None = None,
-        timeout_s: float = AGENT_TIMEOUT_S,
+        timeout_s: float = DEFAULT_AGENT_TIMEOUT_S,
     ):
         self.model = model
         self._token_provider = token_provider

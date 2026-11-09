@@ -140,7 +140,8 @@ a tool, an MCP server, a skill or a plugin other than its built-in ones, the
 call is dropped with an `Upstream` error and the journal says what was loaded.
 
 Each call starts a CLI process (about 0.4 s to its first message) and is cut
-off after 60 s (`AGENT_TIMEOUT_S` in `crepe_daemon/agent_sdk.py`). The request
+off after `agent_timeout_s` (40 s by default, under the extension's 45 s
+call timeout). The request
 contains what the Privacy section lists; the CLI also adds its own request
 metadata, which the daemon does not control.
 
@@ -159,6 +160,11 @@ Optional, in `~/.config/crepe/daemon.toml` (`$XDG_CONFIG_HOME` is honoured,
 | `daily_budget` | `200` | API requests per local day, `Ask` and `Remark` together; `0` disables the API |
 | `remarks` | `false` | Allow `Remark` to call the API |
 | `max_reply_chars` | `160` | Hard cap on a reply |
+| `request_timeout_s` | `20` | Seconds per attempt of an API request (`backend = "api"`), which is retried once; 1 to 300 |
+| `agent_timeout_s` | `40` | Seconds for a whole subscription call (`backend = "abonnement"`); 1 to 300 |
+
+The extension waits 45 s for an answer: with higher timeouts it may give
+up before the daemon does.
 
 A missing file means defaults; an invalid one makes the daemon exit with
 status 2 and a message in the journal, and systemd does not restart it

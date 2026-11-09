@@ -180,8 +180,8 @@ def run_service(config_path: Path | None, fake: bool) -> int:
 
 def build_backend(config: Config):
     if config.backend == SUBSCRIPTION_BACKEND:
-        return AgentSdkBackend(config.model, lambda: keyring.lookup_token("claude"))
-    return AnthropicBackend(config.model, keyring.lookup_key)
+        return AgentSdkBackend(config.model, lambda: keyring.lookup_token("claude"), timeout_s=config.agent_timeout_s)
+    return AnthropicBackend(config.model, keyring.lookup_key, timeout_s=config.request_timeout_s)
 
 
 def key_lookup_for(config: Config, fake: bool):

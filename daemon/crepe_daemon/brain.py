@@ -6,7 +6,7 @@ import re
 import zlib
 from typing import Callable, Protocol
 
-from .config import Config
+from .config import DEFAULT_REQUEST_TIMEOUT_S, Config
 from .context import Context, clip, parse_context, render_context
 from .errors import BudgetError, NoKeyError, UpstreamError
 from .memory import REMARK_PROMPT, DailyCounter, Memory
@@ -16,7 +16,6 @@ log = logging.getLogger(__name__)
 
 # Room for a short reply plus whatever little thinking low effort does.
 MAX_TOKENS = 300
-REQUEST_TIMEOUT_S = 20.0
 # A chat line, not a document: longer text is cut rather than refused, so the
 # extension never meets an error it has no line for.
 MAX_ASK_CHARS = 500
@@ -45,9 +44,13 @@ class Backend(Protocol):
 
 
 class AnthropicBackend:
-    def __init__(self, model: str, key_provider: Callable[[], str | None]):
+    def __init__(
+        self, model: str, key_provider: Callable[[], str | None], timeout_s: float = DEFAULT_REQUEST_TIMEOUT_S
+    ):
         self.model = model
         self._key_provider = key_provider
+        # Per attempt; with the one retry a request can take about twice this.
+        self._timeout_s = timeout_s
         self._client = None
         self._client_key: str | None = None
 
@@ -93,7 +96,7 @@ class AnthropicBackend:
         if not key:
             raise NoKeyError("no API key: run python -m crepe_daemon --set-key")
         if self._client is None or key != self._client_key:
-            self._client = anthropic_module.Anthropic(api_key=key, timeout=REQUEST_TIMEOUT_S, max_retries=MAX_RETRIES)
+            self._client = anthropic_module.Anthropic(api_key=key, timeout=self._timeout_s, max_retries=MAX_RETRIES)
             self._client_key = key
         return self._client
 

@@ -105,6 +105,16 @@ class TokenTest(unittest.TestCase):
         self.assertIsInstance(cli.build_backend(Config(backend="api")), AnthropicBackend)
         self.assertIsInstance(cli.build_backend(Config(backend="abonnement")), AgentSdkBackend)
 
+    def test_api_backend_gets_the_configured_request_timeout(self):
+        backend = cli.build_backend(Config(backend="api", request_timeout_s=12))
+        anthropic = mock.Mock()
+        backend._client_for("key", anthropic)
+        self.assertEqual(anthropic.Anthropic.call_args.kwargs["timeout"], 12)
+
+    def test_subscription_backend_gets_the_configured_agent_timeout(self):
+        backend = cli.build_backend(Config(backend="abonnement", agent_timeout_s=25))
+        self.assertEqual(backend._timeout_s, 25)
+
     def test_empty_input_stores_nothing(self):
         with mock.patch("sys.stderr", io.StringIO()):
             self.assertEqual(self.run_cli("--set-token", "spotify", typed="  "), 1)
