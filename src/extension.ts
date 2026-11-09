@@ -1,5 +1,6 @@
 import type Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import type Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
@@ -8,7 +9,6 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {loadAnimations} from './animations.js';
 import {IdleBehaviour, type NudgeReaction, type ReactionOptions} from './behaviour.js';
 import {Brain, BrainError, type BrainErrorKind} from './brain.js';
 import {SpeechBubble} from './bubble.js';
@@ -28,7 +28,8 @@ import type {Side} from './monitors.js';
 import {MusicWatcher} from './music.js';
 import {NudgeService, type RemindOutcome} from './nudge.js';
 import {INFO_MAX, TEXT_IN_LINE_MAX, oneLine, ticketCount, type NudgeKind} from './nudgetext.js';
-import {OutfitLayer, loadOutfits} from './outfit.js';
+import {OutfitCatalog, OutfitLayer, loadOutfits} from './outfit.js';
+import {loadPack, type LoadedPack} from './packs.js';
 import {AnimationPlayer, IDLE_ANIMATION} from './player.js';
 import {Positioner} from './positioner.js';
 import {Presence} from './presence.js';
@@ -93,6 +94,9 @@ export default class CrepeExtension extends Extension {
     private timers: TimerPool | null = null;
     private sprite: CrepeSprite | null = null;
     private hitbox: Hitbox | null = null;
+    /** The pack she is drawn from, from enable to disable. */
+    private pack: LoadedPack | null = null;
+    private reloadId: number | null = null;
     private layer: SpriteLayer | null = null;
     private eyes: EyesFollower | null = null;
     private dodger: Dodger | null = null;
@@ -158,13 +162,20 @@ export default class CrepeExtension extends Extension {
 
     override enable(): void {
         const settings = new CrepeSettings(this.getSettings());
-        const assetsDir = this.dir.get_child('assets');
+        const builtinAssets = this.dir.get_child('assets');
         // Every asset is read and checked before anything reaches the stage or listens to a signal: a bad
-        // JSON file then fails the enable with nothing to clean up.
-        const {animations} = loadAnimations(assetsDir);
-        const outfitCatalog = loadOutfits(assetsDir, animations.keys());
+        // JSON file then fails the enable with nothing to clean up. A user pack that fails gives way to Crêpe.
+        const pack = loadPack(settings.spritePack, builtinAssets);
+        if (pack.fallbackReason !== null)
+            console.warn(`Crêpe: pack "${settings.spritePack}" not used, Crêpe instead: ${pack.fallbackReason}`);
+        else if (!pack.builtIn)
+            console.log(`Crêpe: pack "${pack.id}" (${pack.manifest.name}) loaded${pack.review.notes.length > 0 ? `; ${pack.review.notes.join(' ')}` : ''}`);
+        this.pack = pack;
+        const {animations} = pack;
+        const assetsDir = pack.dir;
+        const outfitCatalog = loadPackOutfits(pack);
         const voice = new Voice(settings, () => this.bubble?.isShowing === true);
-        voice.loadLines(assetsDir);
+        voice.loadLines(builtinAssets);
 
         // The shell never calls disable() after a failed enable(): whatever was built is torn down here,
         // or an invisible actor would swallow clicks until logout. Each piece is kept on `this` as soon
@@ -308,8 +319,9 @@ export default class CrepeExtension extends Extension {
                 bounds: (x, y) => positioner.placementAreaAt({x, y}),
             });
 
-            const icon = Gio.FileIcon.new(assetsDir.get_child('reference').get_child('1_sud_face.png'));
-            this.toggle = new CrepeToggle(icon, settings.gsettings);
+            const packIcon = assetsDir.get_child('icone.png');
+            const iconFile = packIcon.query_exists(null) ? packIcon : builtinAssets.get_child('reference').get_child('1_sud_face.png');
+            this.toggle = new CrepeToggle(Gio.FileIcon.new(iconFile), settings.gsettings);
 
             // Banners off: the tray still gets every notification, she just stops talking about them.
             this.bannersHandlerId = desktopNotifications.connect('changed::show-banners', () =>
@@ -379,6 +391,7 @@ export default class CrepeExtension extends Extension {
             this.newWindows = new NewWindowWatcher(frame => this.pointAtWindow(frame), () => positioner.roomIndex);
 
             settings.onChanged('visible', () => this.applyVisibility());
+            settings.onChanged('sprite-pack', () => this.reloadForPack());
             settings.onChanged('scale', () => this.rescale());
             // Her size is the setting times the desktop's own scale, which can change under her too.
             const themeContext = St.ThemeContext.get_for_stage(global.stage as Clutter.Stage);
@@ -457,7 +470,35 @@ export default class CrepeExtension extends Extension {
         }
     }
 
+    /**
+     * Another pack: everything on the stage is built from its frames, so
+     * she is taken down and brought back whole, on the next idle tick
+     * rather than inside the setting's own signal. Her spot, reminders and
+     * counters live in the settings and survive; a sulk under way does not.
+     */
+    private reloadForPack(): void {
+        if (this.reloadId !== null)
+            return;
+        this.reloadId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this.reloadId = null;
+            // Disabled meanwhile: the shell does not want her back.
+            if (!this.settings)
+                return GLib.SOURCE_REMOVE;
+            this.disable();
+            try {
+                this.enable();
+            } catch (error) {
+                console.error(`Crêpe: could not come back with the new pack: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     override disable(): void {
+        if (this.reloadId !== null) {
+            GLib.source_remove(this.reloadId);
+            this.reloadId = null;
+        }
         this.nudges?.destroy();
         this.nudges = null;
         this.reminders?.destroy();
@@ -573,6 +614,7 @@ export default class CrepeExtension extends Extension {
 
         this.settings?.destroy();
         this.settings = null;
+        this.pack = null;
     }
 
     /**
@@ -1483,4 +1525,20 @@ function nudgeReaction(kind: Exclude<NudgeKind, 'musique' | 'musique_fin'>, valu
 /** The drawn gesture points right; pointing left plays it mirrored. */
 function pointerTowards(side: Side): string {
     return side === 'right' ? 'pointer' : 'pointer_gauche';
+}
+
+/**
+ * The outfits of the pack: a user pack whose `tenues.json` is wrong
+ * dresses up in nothing rather than keeping her off the screen; only the
+ * built-in pack's file may fail the enable.
+ */
+function loadPackOutfits(pack: LoadedPack): OutfitCatalog {
+    try {
+        return loadOutfits(pack.dir, pack.animations.keys());
+    } catch (error) {
+        if (pack.builtIn)
+            throw error;
+        console.warn(`Crêpe: pack "${pack.id}" outfits not used: ${error instanceof Error ? error.message : String(error)}`);
+        return new OutfitCatalog(new Map());
+    }
 }

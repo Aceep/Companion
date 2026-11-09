@@ -6,6 +6,11 @@
       <summary>Show Crêpe</summary>
       <description>State of the quick settings toggle. Off hides her without disabling the extension.</description>
     </key>
+    <key name="sprite-pack" type="s">
+      <default>''</default>
+      <summary>Sprite pack she is drawn from</summary>
+      <description>The name of a folder under $XDG_DATA_HOME/crepe/packs (~/.local/share/crepe/packs) holding a pack.json and her animations. Empty means the built-in pack, Crêpe. A pack that cannot be loaded falls back to Crêpe.</description>
+    </key>
     <key name="scale" type="i">
       <range min="1" max="8"/>
       <default>3</default>
