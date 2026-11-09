@@ -1,7 +1,8 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
-export const IDLE_ANIMATION = 'attente';
+import {IDLE_ANIMATION} from './player.js';
+
 export const FRAME_SIZE = 80;
 
 /**

@@ -1,4 +1,7 @@
-import {IDLE_ANIMATION, type AnimationDef} from './animations.js';
+import type {AnimationDef} from './animations.js';
+
+/** The resting pose; defined here rather than with the loader so the player stays free of GNOME imports. */
+export const IDLE_ANIMATION = 'attente';
 
 /** Runs `callback` after `delayMs`; returns a function that cancels it. */
 export type Scheduler = (delayMs: number, callback: () => void) => () => void;

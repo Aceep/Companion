@@ -24,6 +24,11 @@ npm run deploy     # build + copy to ~/.local/share/gnome-shell/extensions/
 npm run nested     # deploy + run an isolated nested GNOME Shell with Crêpe enabled
 ```
 
+`npm test` compiles `src/` and `tests/` to `build/test/` and runs the
+tests with `node --test`. Only modules without a value import from
+`gi://` load under node; those are the ones marked "No GNOME dependency"
+in the layout below, and the ones the tests cover.
+
 The nested shell has its own D-Bus session and an in-memory GSettings
 backend, so enabling the extension there never affects your real session.
 Close the nested window to stop it.

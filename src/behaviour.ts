@@ -1,10 +1,9 @@
 import Meta from 'gi://Meta';
 
-import {IDLE_ANIMATION} from './animations.js';
 import {Recollection} from './context.js';
 import {gazePose, restPoseOf, type GazeDirection, type GazeHolder} from './gaze.js';
 import {Annoyance, type MoodLevel, type PokeKind} from './mood.js';
-import type {AnimationPlayer} from './player.js';
+import {IDLE_ANIMATION, type AnimationPlayer} from './player.js';
 import type {Point, Positioner} from './positioner.js';
 import type {CrepeSettings} from './settings.js';
 import type {StatCounter} from './stats.js';
