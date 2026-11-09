@@ -66,7 +66,7 @@ max_reply_chars = 160
 # Minutes between downloads (minimum 5).
 # interval_minutes = 15
 # Nudge for events starting within this many minutes (or within one
-# interval, if longer, so none slips between two looks).
+# interval, if longer, plus a minute, so none slips between two looks).
 # warn_minutes = 10
 
 # What you are listening to on Spotify -> nudges "musique" (a new track) and

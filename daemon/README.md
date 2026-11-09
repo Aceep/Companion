@@ -203,11 +203,13 @@ nudge. The load nudges once per episode when the 1-minute load average is
 above the CPU count at every look for `load_minutes`.
 
 `[watchers.ics]`: `url` (required, http(s)), `interval_minutes`,
-`warn_minutes` (default 10). Events starting within `warn_minutes`, or
-within one interval if that is longer, nudge once each. The parser
-understands UTC, `TZID` (IANA names and the usual Windows names Outlook
-writes) and floating times, all-day events, cancelled events (skipped),
-`EXDATE`, moved instances, and daily or weekly repeats (`INTERVAL`,
+`warn_minutes` (default 10). The watcher warns within
+`max(warn_minutes, interval_minutes)`, plus one minute so that no event
+slips between two looks: each event starting in that window nudges once.
+The parser understands UTC, `TZID` (IANA names and the usual Windows names
+Outlook writes) and floating times, all-day events, cancelled events
+(skipped, including a single cancelled instance of a series), `EXDATE`,
+moved instances, and daily or weekly repeats (`INTERVAL`,
 `COUNT`, `UNTIL`, `BYDAY`); any other repeat rule (monthly, yearly...)
 counts only its first instance.
 

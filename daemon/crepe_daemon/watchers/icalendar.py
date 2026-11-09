@@ -3,7 +3,7 @@
 Supported: folded lines; DTSTART/DTEND as UTC (`Z`), with `TZID=` (IANA
 names, plus the usual Windows names Outlook writes), floating (local time)
 or all-day (`VALUE=DATE`); SUMMARY; STATUS:CANCELLED (skipped); EXDATE;
-moved instances (RECURRENCE-ID); RRULE with FREQ=DAILY or WEEKLY and
+moved or cancelled instances (RECURRENCE-ID); RRULE with FREQ=DAILY or WEEKLY and
 INTERVAL, COUNT, UNTIL, plain BYDAY (MO, TU...) and WKST. Any other rule
 (MONTHLY, YEARLY, BYMONTH, BYSETPOS, BYDAY=1MO...) yields the first
 instance only. VTIMEZONE blocks are ignored: zones come from the system
@@ -71,8 +71,11 @@ class _Property:
 
 def occurrences(text: str, first_day: date, last_day: date, local_tz: tzinfo) -> list[Occurrence]:
     """Every non-cancelled occurrence whose day falls in [first_day, last_day], days taken in the event's zone."""
-    events = [event for event in _vevents(_unfold(text)) if _first(event, "STATUS", "").upper() != "CANCELLED"]
-    moved = _moved_instances(events, local_tz)
+    all_events = _vevents(_unfold(text))
+    # Before dropping the cancelled ones: a cancelled override is how a single
+    # instance of a series is called off, and it must still take that instance out.
+    moved = _moved_instances(all_events, local_tz)
+    events = [event for event in all_events if _first(event, "STATUS", "").upper() != "CANCELLED"]
     found = []
     for event in events:
         found.extend(_event_occurrences(event, first_day, last_day, local_tz, moved))
@@ -168,7 +171,7 @@ def _summary(event: list[_Property]) -> str:
 
 
 def _moved_instances(events: list[list[_Property]], local_tz: tzinfo) -> set[tuple[str, When]]:
-    # A moved instance replaces the one its series would have produced at RECURRENCE-ID.
+    # A moved or cancelled instance replaces the one its series would have produced at RECURRENCE-ID.
     moved = set()
     for event in events:
         recurrence_id = _first_prop(event, "RECURRENCE-ID")

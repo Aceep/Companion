@@ -25,6 +25,9 @@ SENT_MEMORY = timedelta(hours=48)
 MORNING_HOUR = 7
 # Event days are in the event's zone, which can be a day off from ours.
 DAY_MARGIN = timedelta(days=1)
+# Looks drift apart by the download time and timer rounding; without this an
+# event starting just past one look's horizon would already be running at the next.
+LOOK_SLACK = timedelta(minutes=1)
 TEXT_CHARS = 60
 UNTITLED = "Événement"
 
@@ -59,8 +62,8 @@ class IcsWatcher(Watcher):
         self._transport = transport
         self._now = now
         self._tz = local_tz or local_zone()
-        # Between two looks an event must not slip by: look ahead at least one interval.
-        self._lead = timedelta(minutes=max(config.warn_minutes, config.interval_minutes))
+        # Between two looks an event must not slip by: look ahead at least one interval, and a little more.
+        self._lead = timedelta(minutes=max(config.warn_minutes, config.interval_minutes)) + LOOK_SLACK
 
     def poll(self, token: str | None) -> list[Nudge]:
         text = self._transport.get_text(self.config.url, {})

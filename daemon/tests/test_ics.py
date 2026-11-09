@@ -123,6 +123,16 @@ class ParserTest(unittest.TestCase):
         )
         self.assertEqual(sorted(starts(text)["m"]), [utc(2026, 11, 4, 8, 0), utc(2026, 11, 5, 13, 0), utc(2026, 11, 6, 8, 0)])
 
+    def test_cancelled_override_removes_that_instance_of_the_series(self):
+        text = calendar(
+            vevent("UID:s", "DTSTART;TZID=Europe/Paris:20261102T090000", "RRULE:FREQ=DAILY"),
+            vevent(
+                "UID:s", "RECURRENCE-ID;TZID=Europe/Paris:20261105T090000", "STATUS:CANCELLED",
+                "DTSTART;TZID=Europe/Paris:20261105T090000",
+            ),
+        )
+        self.assertEqual(starts(text)["s"], [utc(2026, 11, 4, 8, 0), utc(2026, 11, 6, 8, 0)])
+
     def test_unsupported_rule_yields_only_the_first_instance(self):
         text = calendar(vevent("UID:y", "DTSTART:20261005T070000Z", "RRULE:FREQ=MONTHLY;BYMONTHDAY=5"))
         self.assertNotIn("y", starts(text))
@@ -166,6 +176,23 @@ class IcsWatcherTest(StateDirTestCase):
     def test_lead_covers_one_interval_so_nothing_slips_between_looks(self):
         watcher = self.make(calendar(self.event_in(12, "Rétro"), self.event_in(20, "Plus tard")))
         self.assertEqual(watcher.tick(), [("agenda", "Rétro dans 12 min")])
+
+    def test_event_just_past_the_look_horizon_is_announced_once(self):
+        # Interval 15 min: the next look comes at 15 min plus the download time, after this event started.
+        watcher = self.make(calendar(vevent("UID:late", "SUMMARY:Revue", "DTSTART:20261105T081507Z")))
+        self.assertEqual(watcher.tick(), [("agenda", "Revue dans 15 min")])
+        self.clock["now"] += timedelta(minutes=15, seconds=10)
+        self.assertEqual(watcher.tick(), [])
+
+    def test_cancelled_thursday_of_a_daily_series_is_not_announced(self):
+        watcher = self.make(
+            calendar(
+                vevent("UID:daily", "SUMMARY:Daily", "DTSTART:20261102T080500Z", "RRULE:FREQ=DAILY"),
+                vevent("UID:daily", "SUMMARY:Daily", "RECURRENCE-ID:20261105T080500Z", "STATUS:CANCELLED",
+                       "DTSTART:20261105T080500Z"),
+            )
+        )
+        self.assertEqual(watcher.tick(), [])
 
     def test_event_is_nudged_once(self):
         watcher = self.make(calendar(self.event_in(5, "Point")))
