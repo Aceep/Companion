@@ -43,8 +43,6 @@ export class Presence {
     private focusHandlerId: number | null = null;
     private perchWindow: Meta.Window | null = null;
     private perchHandlerIds: number[] = [];
-    /** The spot she left to get out of a window's way, to go back to. */
-    private dodgedFrom: Point | null = null;
 
     constructor(sprite: CrepeSprite, hitbox: Hitbox, positioner: Positioner, behaviour: IdleBehaviour, settings: CrepeSettings) {
         this.sprite = sprite;
@@ -79,9 +77,9 @@ export class Presence {
         return this.state === 'dodged';
     }
 
-    /** Where she was before getting out of a window's way; null when she is not out of one's way. */
+    /** Her spot, which she left to get out of a window's way; null when she is not out of one's way. */
     get dodgeOrigin(): Point | null {
-        return this.state === 'dodged' ? this.dodgedFrom : null;
+        return this.state === 'dodged' ? this.positioner.homePosition() : null;
     }
 
     /** Stormed off in a fury: neither the menu, a click nor the shortcut brings her back. */
@@ -99,7 +97,6 @@ export class Presence {
         this.unfollowFocus();
         this.releaseWindow();
         this.state = 'home';
-        this.dodgedFrom = null;
         this.storming = false;
         this.showAndReach(true);
         this.travelling = false;
@@ -228,7 +225,6 @@ export class Presence {
     dodge(spot: Point): boolean {
         if (this.state !== 'home' && this.state !== 'dodged')
             return false;
-        const from = this.state === 'home' ? this.positioner.position : this.dodgedFrom;
         this.positioner.detach();
         const started = this.errand(spot.x > this.sprite.actor.x, done =>
             this.positioner.travelTo(spot, this.speed(), done), () => {});
@@ -238,18 +234,19 @@ export class Presence {
             return false;
         }
         this.state = 'dodged';
-        this.dodgedFrom = from;
         this.behaviour.allowCrawling(false);
         return true;
     }
 
-    /** Back to the spot she left to dodge; `onHome` once there. */
+    /**
+     * Back to her remembered spot, the one `attach()` puts her on, so the
+     * trip ends where she stands instead of with a jump; `onHome` once there.
+     */
     undodge(onHome: () => void = () => {}): void {
         if (this.state !== 'dodged')
             return;
-        const back = this.dodgedFrom ?? this.positioner.homePosition();
+        const back = this.positioner.homePosition();
         this.state = 'home';
-        this.dodgedFrom = null;
         this.behaviour.allowCrawling(true);
         const arrive = () => {
             this.positioner.attach();
@@ -269,7 +266,6 @@ export class Presence {
         this.releaseWindow();
         this.travelling = false;
         this.state = 'home';
-        this.dodgedFrom = null;
         this.behaviour.allowCrawling(true);
         if (wasAway)
             this.behaviour.resume();

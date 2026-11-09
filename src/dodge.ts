@@ -14,6 +14,8 @@ const SETTLE_DELAY = 400;
 const RETURN_AFTER = 3 * 1000;
 /** Moving aside more often than this would have her shuffling all day. */
 const DODGE_EVERY = 10 * 1000;
+/** Mid-crawl she is in nobody's way for long; she looks again this often until she stops. */
+const CRAWL_RECHECK = 1000;
 /** Share of her frame over the window past which she is in the way. */
 const OVERLAP_LIMIT = 0.25;
 
@@ -214,6 +216,11 @@ export class Dodger {
     }
 
     private dodge(window: Rect): void {
+        // Stopping a crawl halfway would leave her remembered spot behind her, and the way back would end in a jump.
+        if (this.behaviour.isCrawling) {
+            this.scheduleCheck(CRAWL_RECHECK);
+            return;
+        }
         if (!this.mayMove())
             return;
         const wait = this.lastDodgeAt + DODGE_EVERY - Date.now();

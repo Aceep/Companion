@@ -96,6 +96,8 @@ gnome-extensions prefs crepe@aceep.github.io
   `chargement`, `compiling`, `building`, `installing`, `en cours`, or a
   title ending in `…` or `...`) for 30 seconds gets her tapping a
   tentacle, over and over, until the title moves on or focus does.
+  Interrupted meanwhile (carried, asleep, sent somewhere, sulking), she
+  gets back to it once she is free again, while the title still waits.
 - A new window opening clearly to one side of her may get pointed at,
   silently, once a minute at most.
 - A window title that says it is busy (`building`, `npm run`, `cargo`,
@@ -132,7 +134,8 @@ gnome-extensions prefs crepe@aceep.github.io
   spot now. The first time a window sends her aside she may say so
   (`esquive`, one time in three); never from the corner. One dodge every
   10 seconds at most, and none while she is perched, hiding, asleep,
-  carried, storming off or focusing, nor in the "behind" layer.
+  carried, storming off or focusing, nor in the "behind" layer. Mid-crawl
+  she finishes the crawl first, then looks again.
 - "Couche" in the preferences puts her behind the windows instead: on
   the desktop, above the wallpaper and the desktop icons, under every
   window. Her speech bubble stays above the windows so it can be read.

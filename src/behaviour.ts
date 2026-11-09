@@ -97,6 +97,9 @@ export type FocusListener = (focusing: boolean) => void;
 /** Told each time something worth counting happens to her. */
 export type StatsListener = (counter: StatCounter) => void;
 
+/** Told when she stops tapping at a wait, whatever stopped her: the wait may still be on. */
+export type TappingListener = () => void;
+
 /**
  * Asked to spit ink when she loses her temper: `storm` as she leaves,
  * `sulk` when poked while sulking. True when ink really came, which
@@ -143,6 +146,7 @@ export class IdleBehaviour implements GazeHolder {
     private stormHandler: StormHandler | null = null;
     private focusListener: FocusListener = () => {};
     private countStat: StatsListener = () => {};
+    private tappingStopped: TappingListener = () => {};
     private inkHandler: InkHandler = () => false;
     /** She has already spat ink in this sulk: once is a gesture, twice is a habit. */
     private inkedThisSulk = false;
@@ -252,7 +256,7 @@ export class IdleBehaviour implements GazeHolder {
             this.mood.cameBack();
         this.furious = false;
         this.stopCrawl();
-        this.tapping = false;
+        this.endTapping();
         this.asleep = false;
         this.dragging = false;
         this.away = false;
@@ -296,6 +300,15 @@ export class IdleBehaviour implements GazeHolder {
         return this.dragging;
     }
 
+    /** On a crawl, her own or a trip she was sent on. */
+    get isCrawling(): boolean {
+        return this.crawling;
+    }
+
+    get isTapping(): boolean {
+        return this.tapping;
+    }
+
     /** Resting where she is, so her eyes may wander: not asleep, carried, off-screen, crawling or tapping. */
     get canFollowPointer(): boolean {
         return this.running && !this.asleep && !this.away && !this.dragging && !this.crawling && !this.tapping;
@@ -320,6 +333,10 @@ export class IdleBehaviour implements GazeHolder {
 
     setStatsListener(listener: StatsListener): void {
         this.countStat = listener;
+    }
+
+    setTappingListener(listener: TappingListener): void {
+        this.tappingStopped = listener;
     }
 
     setInkHandler(handler: InkHandler): void {
@@ -439,7 +456,7 @@ export class IdleBehaviour implements GazeHolder {
         const origin = this.positioner.position;
         // Picked up from the sliver left at the screen edge, there is no spot of hers to go back to.
         this.dragOrigin = this.positioner.isInsideArea(origin) ? origin : null;
-        this.tapping = false;
+        this.endTapping();
         // Being picked up is activity; a pending wake-up wave would play mid-air.
         this.asleep = false;
         // Carried, she looks straight ahead rather than at the hand holding her.
@@ -464,7 +481,7 @@ export class IdleBehaviour implements GazeHolder {
             return;
         this.away = true;
         this.onWakeWhileAway = onWake;
-        this.tapping = false;
+        this.endTapping();
         this.cancelTimers();
     }
 
@@ -498,7 +515,7 @@ export class IdleBehaviour implements GazeHolder {
             return false;
         this.cancelTimers();
         this.stopCrawl();
-        this.tapping = false;
+        this.endTapping();
         this.crawling = true;
         this.errand = true;
         this.player.play(goingRight ? 'ramper_droite' : 'ramper_gauche');
@@ -568,7 +585,7 @@ export class IdleBehaviour implements GazeHolder {
     stopTapping(): void {
         if (!this.tapping)
             return;
-        this.tapping = false;
+        this.endTapping();
         this.scheduleCrawl();
         this.scheduleComment();
         // Mid-gesture, the end of the gesture brings the resting pose and the fidgets back.
@@ -577,6 +594,17 @@ export class IdleBehaviour implements GazeHolder {
         this.player.play(this.restFrame);
         this.scheduleBlink();
         this.scheduleFidget();
+    }
+
+    /**
+     * The one way tapping ends, so whoever started it hears of it. The
+     * routine is left to the caller: an interruption has its own plans.
+     */
+    private endTapping(): void {
+        if (!this.tapping)
+            return;
+        this.tapping = false;
+        this.tappingStopped();
     }
 
     /** Settings changed: re-arm whatever depends on them. */
@@ -767,7 +795,7 @@ export class IdleBehaviour implements GazeHolder {
     private swingBat(): void {
         this.cancelTimers();
         this.stopCrawl();
-        this.tapping = false;
+        this.endTapping();
         // A notification landing right now would cut the swing short.
         this.lastReactionAt = Date.now();
         // She is sulking already, so the swing ends on the bat held in front of her.
@@ -783,7 +811,7 @@ export class IdleBehaviour implements GazeHolder {
     private stormOff(): void {
         this.cancelTimers();
         this.stopCrawl();
-        this.tapping = false;
+        this.endTapping();
         // The sulk goes on out there; the return reschedules its end.
         this.cancelSulkEnd?.();
         this.cancelSulkEnd = null;
@@ -1107,7 +1135,7 @@ export class IdleBehaviour implements GazeHolder {
             return;
         this.cancelTimers();
         this.stopCrawl();
-        this.tapping = false;
+        this.endTapping();
         this.player.play('endormie');
         this.say(line);
     }

@@ -70,6 +70,8 @@ const MEETING_WORTH_A_WORD = 2 * 60 * 1000;
 /** The summary waits for her to be free (awake, at home, not focusing) this long, then is dropped as stale. */
 const SUMMARY_PATIENCE = 10 * 60 * 1000;
 const SUMMARY_RETRY_EVERY = 10 * 1000;
+/** Busy elsewhere when a wait should make her tap (crawling, carried, asleep...), she tries again this often while it lasts. */
+const IMPATIENCE_RETRY = 10 * 1000;
 /** Sprite rows from her head's top to her eyes, in the resting pose. */
 const EYES_BELOW_HEAD = 22;
 
@@ -217,6 +219,7 @@ export default class CrepeExtension extends Extension {
             });
             this.behaviour = behaviour;
             behaviour.setStatsListener(counter => stats.increment(counter));
+            behaviour.setTappingListener(() => this.tappingStopped());
             behaviour.setFocusListener(focusing => this.focusChanged(focusing));
             behaviour.setInkHandler(reason => this.throwInk(reason));
             const presence = new Presence(sprite, hitbox, positioner, behaviour, settings);
@@ -1164,12 +1167,31 @@ export default class CrepeExtension extends Extension {
         const dueIn = this.longTasks.impatienceIn(windowId, now);
         if (dueIn === null || this.waitingWindowId === windowId)
             return;
-        const behaviour = this.behaviour;
+        this.armImpatience(windowId, dueIn);
+    }
+
+    private armImpatience(windowId: number, delayMs: number): void {
+        const {timers, behaviour} = this;
+        if (!timers || !behaviour)
+            return;
+        this.cancelImpatience?.();
         this.waitingWindowId = windowId;
-        this.cancelImpatience = this.timers.schedule(dueIn, () => {
+        this.cancelImpatience = timers.schedule(delayMs, () => {
             this.cancelImpatience = null;
-            behaviour.startTapping();
+            if (!behaviour.startTapping() && !behaviour.isTapping)
+                this.armImpatience(windowId, IMPATIENCE_RETRY);
         });
+    }
+
+    /**
+     * Something cut her tapping short (a drag, a trip, a nap, a sulk) while
+     * the title still waits: she gets back to it later. `endWait()` clears
+     * the wait before it stops her, so its own stop does not come back here.
+     */
+    private tappingStopped(): void {
+        if (this.waitingWindowId === null || this.cancelImpatience)
+            return;
+        this.armImpatience(this.waitingWindowId, IMPATIENCE_RETRY);
     }
 
     /** Focus moved or the title stopped waiting: no more tapping, no pending impatience. */
