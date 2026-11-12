@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Un pack de sprites en une commande, depuis la racine du dépôt :
+"""Ton propre personnage à la place de Crêpe, en cinq étapes.
 
-    ./pack <id>     la première fois : crée ~/.local/share/crepe/packs/<id>
-                    (quatre questions, pack.json, gabarit, dossiers obligatoires)
-    ./pack <id>     ensuite : écrit animations.json d'après les PNG déposés,
-                    puis vérifie le pack et dit ce qu'elle fera autrement
+Tu veux Crêpe telle quelle ? Pas besoin de ce script : npm run deploy.
 
-<id> en minuscules, chiffres, « - » ou « _ » : c'est le nom du pack dans les
-préférences. Le dossier suit $XDG_DATA_HOME, ~/.local/share par défaut.
-scripts/pack.py fait la même chose sous-commande par sous-commande, sur un
-dossier quelconque.
+Tu veux ton personnage ?
 
-Pour Crêpe elle-même, pas besoin de pack : npm run deploy suffit.
+  1. Donne-lui un identifiant en minuscules, par exemple « poireau ».
+
+  2. ./pack poireau
+     Quatre questions (son nom, le mot qu'il répète, l'auteur, une
+     description), puis le dossier du pack est créé :
+       ~/.local/share/crepe/packs/poireau/
+
+  3. Dessine-le : des PNG 80×80 à déposer dans ce dossier, au minimum sa
+     pose d'attente, son clignement et sa marche vers la droite. Le script
+     dit comment à la fin de l'étape 2, et PACKS.md décrit chaque animation.
+     Avec un compte PixelLab, le skill inclus les dessine pour toi.
+
+  4. ./pack poireau
+     Prépare le pack à partir des images, le vérifie et dit ce qu'il manque.
+     À relancer après chaque ajout d'images.
+
+  5. Préférences de l'extension, page « Apparence » : choisis-le.
 """
 
 MCP_PIXELLAB = 'claude mcp add pixellab https://api.pixellab.ai/mcp -t http -H "Authorization: Bearer <token>"'
