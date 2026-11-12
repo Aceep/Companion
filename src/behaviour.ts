@@ -39,10 +39,10 @@ const TAPPING = 'tapote';
 const BRIEF_TAP = 3 * SECOND;
 
 /** While she sulks she rests, and blinks, with the bat held in front of her. */
-const BAT_HELD = 'batte_tenue';
-const BAT_HELD_BLINK = 'batte_clignement';
+const BAT_HELD = 'menace_tenue';
+const BAT_HELD_BLINK = 'menace_clignement';
 /** The swing played backwards: the sulk is over, the bat goes back behind her. */
-const BAT_PUT_AWAY = 'batte_rangee';
+const BAT_PUT_AWAY = 'menace_rangee';
 
 /** Annoyed, she is that many times as likely as calm to crawl back after a drop. */
 const HOMESICK_ANNOYED_FACTOR = 2;
@@ -324,9 +324,14 @@ export class IdleBehaviour implements GazeHolder {
         return this.tapping;
     }
 
+    /** Whether the pack drew the resting pose with the eyes turned; without it there is nothing to follow with. */
+    get hasEyePoses(): boolean {
+        return this.player.has(gazePose(IDLE_ANIMATION, 'est'));
+    }
+
     /** Resting where she is, so her eyes may wander: not asleep, carried, off-screen, crawling or tapping. */
     get canFollowPointer(): boolean {
-        return this.running && !this.asleep && !this.away && !this.dragging && !this.crawling && !this.tapping;
+        return this.running && this.hasEyePoses && !this.asleep && !this.away && !this.dragging && !this.crawling && !this.tapping;
     }
 
     /**
@@ -437,12 +442,19 @@ export class IdleBehaviour implements GazeHolder {
         if (!this.isResting(current) && current !== this.blinkName)
             return;
         const [pointerX] = global.get_pointer();
-        this.playGesture(pointerX < this.spriteCenterX() ? 'regard_gauche' : 'regard_droite');
+        const glance = pointerX < this.spriteCenterX() ? 'regard_gauche' : 'regard_droite';
+        if (this.player.has(glance))
+            this.playGesture(glance);
+    }
+
+    /** Whether the pack drew her sulk with something held; all four of its animations come together. */
+    private get hasMenace(): boolean {
+        return this.player.has(BAT_HELD);
     }
 
     /** What she holds still in, and what every gesture falls back to. */
     private get restPose(): string {
-        return this.mood.isSulking ? BAT_HELD : IDLE_ANIMATION;
+        return this.mood.isSulking && this.hasMenace ? BAT_HELD : IDLE_ANIMATION;
     }
 
     /** The resting pose with her eyes where they look: what she actually shows while resting. */
@@ -458,7 +470,7 @@ export class IdleBehaviour implements GazeHolder {
 
     /** The blink drawn on top of the current resting pose. */
     private get blinkName(): string {
-        return this.mood.isSulking ? BAT_HELD_BLINK : 'clignement';
+        return this.mood.isSulking && this.hasMenace ? BAT_HELD_BLINK : 'clignement';
     }
 
     /**
@@ -537,7 +549,7 @@ export class IdleBehaviour implements GazeHolder {
         this.endTapping();
         this.crawling = true;
         this.errand = true;
-        this.player.play(goingRight ? 'ramper_droite' : 'ramper_gauche');
+        this.player.play(goingRight ? 'marche_droite' : 'marche_gauche');
         move(() => {
             this.crawling = false;
             this.errand = false;
@@ -606,6 +618,9 @@ export class IdleBehaviour implements GazeHolder {
     startTapping(): boolean {
         if (!this.running || this.asleep || this.away || this.crawling || this.dragging || this.tapping || this.focusing)
             return false;
+        // Without the drawing there is no impatience to show: a line alone, over and over, would not be it.
+        if (!this.player.has(TAPPING))
+            return false;
         this.tapping = true;
         this.cancelTimers();
         this.player.play(TAPPING);
@@ -665,13 +680,15 @@ export class IdleBehaviour implements GazeHolder {
 
     /** `react()` without the focus rule, for what still gets through it: a click. */
     private playReaction(name: string, options: ReactionOptions): boolean {
-        if (!this.running || this.asleep || this.away || this.crawling || this.dragging || !this.player.has(name))
+        if (!this.running || this.asleep || this.away || this.crawling || this.dragging)
             return false;
         const now = Date.now();
         if (now - this.lastReactionAt < REACTION_COOLDOWN)
             return false;
         this.lastReactionAt = now;
-        this.playGesture(name);
+        // A gesture the pack did not draw: the line comes alone.
+        if (this.player.has(name))
+            this.playGesture(name);
         const event = options.event ?? REACTION_EVENTS[name];
         if (event)
             this.say(event);
@@ -771,7 +788,11 @@ export class IdleBehaviour implements GazeHolder {
         if (this.crawling)
             return;
         const [pointerX] = global.get_pointer();
-        this.playGesture(pointerX < this.spriteCenterX() ? 'regard_droite' : 'regard_gauche', onDone);
+        const glance = pointerX < this.spriteCenterX() ? 'regard_droite' : 'regard_gauche';
+        if (this.player.has(glance))
+            this.playGesture(glance, onDone);
+        else
+            onDone();
     }
 
     /**
@@ -813,7 +834,7 @@ export class IdleBehaviour implements GazeHolder {
         this.cancelTimers();
         this.crawling = true;
         this.countStat('crawls');
-        this.player.play(origin.x > this.positioner.position.x ? 'ramper_droite' : 'ramper_gauche');
+        this.player.play(origin.x > this.positioner.position.x ? 'marche_droite' : 'marche_gauche');
         this.say('retour_maison');
         this.positioner.travelTo(origin, CRAWL_SPEED * this.spriteScale(), () => {
             this.crawling = false;
@@ -831,7 +852,8 @@ export class IdleBehaviour implements GazeHolder {
         // A notification landing right now would cut the swing short.
         this.lastReactionAt = Date.now();
         // She is sulking already, so the swing ends on the bat held in front of her.
-        this.playGesture('batte');
+        if (this.hasMenace)
+            this.playGesture('menace');
         this.say('enervee');
         this.scheduleSulkEnd();
     }
@@ -906,10 +928,15 @@ export class IdleBehaviour implements GazeHolder {
      */
     private putBatAway(): void {
         const current = this.player.currentName;
-        if (restPoseOf(current) !== BAT_HELD && current !== BAT_HELD_BLINK)
+        if (this.hasMenace) {
+            if (restPoseOf(current) !== BAT_HELD && current !== BAT_HELD_BLINK)
+                return;
+            this.playGesture(BAT_PUT_AWAY);
+        } else if (!this.isResting(current)) {
+            // Nothing to put away: the word that the sulk is over still waits for her to rest.
             return;
-        this.playGesture(BAT_PUT_AWAY);
-        this.say('batte_rangee');
+        }
+        this.say('menace_rangee');
     }
 
     private playGesture(name: string, onDone: () => void = () => {}): void {
@@ -1088,7 +1115,7 @@ export class IdleBehaviour implements GazeHolder {
         this.cancelFidget = null;
 
         const goingRight = destination > this.spriteCenterX();
-        this.player.play(goingRight ? 'ramper_droite' : 'ramper_gauche');
+        this.player.play(goingRight ? 'marche_droite' : 'marche_gauche');
         this.positioner.moveTo(destination, CRAWL_SPEED * this.spriteScale(), () => {
             this.crawling = false;
             this.player.play(this.restFrame);

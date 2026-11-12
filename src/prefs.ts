@@ -6,6 +6,7 @@ import Gtk from 'gi://Gtk';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import {fetchStatus, type BrainStatus} from './brain.js';
+import {BUILTIN_PACK_ID, listPacks, loadPack, packsDirectory, type LoadedPack} from './packs.js';
 import {TALK_SHORTCUT_KEY} from './settings.js';
 import {STAT_COUNTERS, parseStats, sumDays, type StatCounter} from './stats.js';
 import {OUTFIT_IDS, parseBirthday, type OutfitId} from './wardrobe.js';
@@ -40,13 +41,16 @@ const STAT_PERIODS: readonly {title: string; days: number}[] = [
 export default class CrepePreferences extends ExtensionPreferences {
     override fillPreferencesWindow(window: Adw.PreferencesWindow): void {
         const settings = this.getSettings();
-        const page = new Adw.PreferencesPage({title: 'Crêpe', iconName: 'face-plain-symbolic'});
-        page.add(this.appearanceGroup(settings));
-        page.add(this.behaviourGroup(settings));
+        const builtinAssets = this.dir.get_child('assets');
+        // The pack she is drawn from right now: its name and word label the rows, its gaps grey some of them out.
+        const pack = loadPack(settings.get_string('sprite-pack'), builtinAssets);
+        const page = new Adw.PreferencesPage({title: pack.manifest.name, iconName: 'face-plain-symbolic'});
+        page.add(this.behaviourGroup(settings, pack));
         page.add(this.rhythmGroup(settings));
-        page.add(outfitsGroup(settings));
+        page.add(outfitsGroup(settings, pack));
         page.add(this.keywordsGroup(settings));
         window.add(page);
+        window.add(appearancePage(window, settings, builtinAssets, pack));
         window.add(this.brainPage(window, settings));
         window.add(statsPage(window, settings));
     }
@@ -82,24 +86,22 @@ export default class CrepePreferences extends ExtensionPreferences {
         return page;
     }
 
-    private appearanceGroup(settings: Gio.Settings): Adw.PreferencesGroup {
-        const group = new Adw.PreferencesGroup({title: 'Apparence'});
-        group.add(spinRow(settings, 'scale', 'Taille', "Pixels d'écran par pixel du sprite. À 3, elle mesure 240 px.", 1, 8));
-        group.add(switchRow(settings, 'visible', 'Afficher Crêpe', 'Comme le bouton des réglages rapides.'));
-        return group;
-    }
-
-    private behaviourGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+    private behaviourGroup(settings: Gio.Settings, pack: LoadedPack): Adw.PreferencesGroup {
+        const word = pack.manifest.word;
         const group = new Adw.PreferencesGroup({title: 'Comportement'});
         group.add(spinRow(settings, 'sleep-after-minutes', "S'endort après (minutes)", 'Sans activité clavier ni souris.', 1, 120));
         group.add(switchRow(settings, 'crawl', 'Se promène', 'De temps en temps, elle change de place à la même hauteur.'));
         group.add(switchRow(settings, 'talk', 'Parle', 'Lâche une courte remarque de temps en temps.'));
-        group.add(spinRow(settings, 'crepe-speech', 'Parle crêpe (%)', '0 : toujours en clair, 100 : toujours en crêpe, la phrase lisible en petit dessous', 0, 100));
+        group.add(spinRow(settings, 'crepe-speech', `Parle ${word} (%)`, `0 : toujours en clair, 100 : toujours en ${word}, la phrase lisible en petit dessous`, 0, 100));
         group.add(switchRow(settings, 'react-to-notifications', 'Réagit aux notifications', "Sursaute à l'arrivée ; facepalm ou pouce levé selon les mots-clés."));
         group.add(switchRow(settings, 'react-to-windows', 'Réagit aux titres de fenêtre', 'Surveille les mots-clés dans le titre de la fenêtre active.'));
-        group.add(switchRow(settings, 'ink', "Crache de l'encre quand elle est furieuse", "Quelques taches sombres sur l'écran, qui s'effacent d'elles-mêmes. Aussi quand on la titille en pleine bouderie."));
+        group.add(packRow(
+            switchRow(settings, 'ink', "Crache de l'encre quand elle est furieuse", "Quelques taches sombres sur l'écran, qui s'effacent d'elles-mêmes. Aussi quand on la titille en pleine bouderie."),
+            pack.dir.get_child('encre').query_exists(null), "Ce pack n'a pas dessiné d'encre."));
         group.add(switchRow(settings, 'perch', 'Se perche sur la fenêtre active', 'Sur sa barre de titre, au lieu de sa place à elle.'));
-        group.add(switchRow(settings, 'eyes-follow', 'Suit la souris des yeux', "Au repos, elle regarde vers le pointeur ; tout près d'elle ou immobile, elle regarde droit devant."));
+        group.add(packRow(
+            switchRow(settings, 'eyes-follow', 'Suit la souris des yeux', "Au repos, elle regarde vers le pointeur ; tout près d'elle ou immobile, elle regarde droit devant."),
+            !pack.review.missing.includes('yeux_est'), "Ce pack n'a pas dessiné les yeux tournés (poses yeux_*)."));
         group.add(switchRow(settings, 'dodge', "S'écarte de la fenêtre active", 'Elle se pousse sur sa ligne quand elle la cache, et revient ensuite. Seulement au-dessus des fenêtres.'));
         group.add(layerRow(settings));
         group.add(spinRow(settings, 'bedtime-hour', "Va se coucher toute seule à partir de (heure)", "Jusqu'à 6 h du matin. 0 = jamais.", 0, 23));
@@ -144,10 +146,14 @@ const OUTFIT_LABELS: Record<OutfitId, string> = {
     transat: 'Transat',
 };
 
-function outfitsGroup(settings: Gio.Settings): Adw.PreferencesGroup {
+function outfitsGroup(settings: Gio.Settings, pack: LoadedPack): Adw.PreferencesGroup {
+    const hasOutfits = pack.dir.get_child('tenues.json').query_exists(null);
     const group = new Adw.PreferencesGroup({
         title: 'Tenues',
-        description: "Masque pour dormir, bonnet l'hiver, lunettes l'été, chapeau pour son anniversaire, verre et transat le vendredi soir.",
+        description: hasOutfits
+            ? "Masque pour dormir, bonnet l'hiver, lunettes l'été, chapeau pour son anniversaire, verre et transat le vendredi soir."
+            : "Ce pack n'a pas de tenues (pas de tenues.json) : rien à porter.",
+        sensitive: hasOutfits,
     });
     group.add(switchRow(settings, 'outfits', "S'habille selon le jour", 'Désactivé, elle ne porte rien, tenue forcée comprise.'));
     group.add(birthdayRow(settings));
@@ -192,6 +198,106 @@ function overrideRow(settings: Gio.Settings): Adw.ComboRow {
         if (value !== undefined && value !== settings.get_string('outfit-override'))
             settings.set_string('outfit-override', value);
     });
+    return row;
+}
+
+/** A row for something the pack may not have drawn: greyed out, with the reason, when it has not. */
+function packRow<T extends Adw.PreferencesRow & {subtitle: string}>(row: T, available: boolean, reason: string): T {
+    if (!available) {
+        row.sensitive = false;
+        row.subtitle = reason;
+    }
+    return row;
+}
+
+/** The pack she is drawn from, her size and whether she shows. */
+function appearancePage(window: Adw.PreferencesWindow, settings: Gio.Settings, builtinAssets: Gio.File, pack: LoadedPack): Adw.PreferencesPage {
+    const page = new Adw.PreferencesPage({title: 'Apparence', iconName: 'preferences-desktop-appearance-symbolic'});
+
+    const character = new Adw.PreferencesGroup({
+        title: 'Personnage',
+        description: 'Un pack est un dossier avec un pack.json et ses animations, à déposer dans le dossier des packs. PACKS.md dit comment en dessiner un.',
+    });
+    character.add(packChoiceRow(settings));
+    character.add(packStateRow(settings, builtinAssets));
+    character.add(packsFolderRow(window));
+    page.add(character);
+
+    const display = new Adw.PreferencesGroup({title: 'Affichage'});
+    display.add(spinRow(settings, 'scale', 'Taille', "Pixels d'écran par pixel du sprite. À 3, le personnage mesure 240 px.", 1, 8));
+    display.add(switchRow(settings, 'visible', `Afficher ${pack.manifest.name}`, 'Comme le bouton des réglages rapides.'));
+    page.add(display);
+    return page;
+}
+
+/** Crêpe first, then every folder of the packs directory, the unusable ones marked; choosing one writes the setting. */
+function packChoiceRow(settings: Gio.Settings): Adw.ComboRow {
+    const choices: {id: string; label: string}[] = [
+        {id: BUILTIN_PACK_ID, label: 'Crêpe (intégrée)'},
+        ...listPacks().map(entry => ({
+            id: entry.id,
+            label: entry.manifest ? `${entry.manifest.name} (${entry.id})` : `${entry.id} (pack illisible)`,
+        })),
+    ];
+    const current = settings.get_string('sprite-pack');
+    // A pack named in the setting but gone from the folder stays listed, so the row shows what is set.
+    if (!choices.some(choice => choice.id === current))
+        choices.push({id: current, label: `${current} (introuvable)`});
+
+    const row = new Adw.ComboRow({
+        title: 'Personnage',
+        subtitle: 'Le changement est immédiat ; une bouderie en cours est oubliée.',
+        model: Gtk.StringList.new(choices.map(choice => choice.label)),
+    });
+    const sync = () => {
+        const index = choices.findIndex(choice => choice.id === settings.get_string('sprite-pack'));
+        row.selected = Math.max(0, index);
+    };
+    sync();
+    const handlerId = settings.connect('changed::sprite-pack', sync);
+    row.connect('destroy', () => settings.disconnect(handlerId));
+    row.connect('notify::selected', () => {
+        const choice = choices[row.selected];
+        if (choice && choice.id !== settings.get_string('sprite-pack'))
+            settings.set_string('sprite-pack', choice.id);
+    });
+    return row;
+}
+
+/** What the extension makes of the chosen pack: loaded, with what it does differently, or refused and why. */
+function packStateRow(settings: Gio.Settings, builtinAssets: Gio.File): Adw.ActionRow {
+    const row = new Adw.ActionRow({title: 'État'});
+    const sync = () => {
+        row.subtitle = describePack(loadPack(settings.get_string('sprite-pack'), builtinAssets));
+    };
+    sync();
+    const handlerId = settings.connect('changed::sprite-pack', sync);
+    row.connect('destroy', () => settings.disconnect(handlerId));
+    return row;
+}
+
+function describePack(pack: LoadedPack): string {
+    if (pack.fallbackReason !== null)
+        return `Pack refusé, Crêpe à la place : ${pack.fallbackReason}`;
+    if (pack.builtIn)
+        return 'Crêpe, le pack intégré. Tout est là.';
+    const who = pack.manifest.author ? `${pack.manifest.name}, de ${pack.manifest.author}.` : `${pack.manifest.name}.`;
+    const notes = pack.review.notes.length > 0 ? pack.review.notes.join(' ') : 'Toutes les animations sont là.';
+    return `${who} ${notes}`;
+}
+
+/** Where to drop a pack, with a button that opens the folder in the file manager, creating it first. */
+function packsFolderRow(window: Adw.PreferencesWindow): Adw.ActionRow {
+    const directory = packsDirectory();
+    const row = new Adw.ActionRow({title: 'Dossier des packs', subtitle: directory.get_path() ?? ''});
+    const button = new Gtk.Button({label: 'Ouvrir', valign: Gtk.Align.CENTER});
+    button.connect('clicked', () => {
+        if (!directory.query_exists(null))
+            directory.make_directory_with_parents(null);
+        new Gtk.FileLauncher({file: directory}).launch(window, null, null);
+    });
+    row.add_suffix(button);
+    row.activatableWidget = button;
     return row;
 }
 

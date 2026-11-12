@@ -177,7 +177,7 @@
     "usage": "Quand tu reviens sur ton PC",
     "planche": "coucou/coucou_planche.png"
   },
-  "batte": {
+  "menace": {
     "images": 9,
     "taille": "80x80",
     "durees_ms": [
@@ -193,9 +193,9 @@
     ],
     "boucle": false,
     "usage": "Pour rire : un swing de baseball sans conviction",
-    "planche": "batte/batte_planche.png"
+    "planche": "menace/menace_planche.png"
   },
-  "ramper_droite": {
+  "marche_droite": {
     "images": 9,
     "taille": "80x80",
     "durees_ms": [
@@ -211,9 +211,9 @@
     ],
     "boucle": true,
     "usage": "Déplacement vers la droite, en boucle",
-    "planche": "ramper_droite/ramper_droite_planche.png"
+    "planche": "marche_droite/marche_droite_planche.png"
   },
-  "ramper_gauche": {
+  "marche_gauche": {
     "images": 9,
     "taille": "80x80",
     "durees_ms": [
@@ -229,7 +229,7 @@
     ],
     "boucle": true,
     "usage": "Déplacement vers la gauche, en boucle",
-    "planche": "ramper_gauche/ramper_gauche_planche.png"
+    "planche": "marche_gauche/marche_gauche_planche.png"
   },
   "attente": {
     "images": 1,
@@ -344,7 +344,7 @@
     "usage": "Se gratte la tête : la même erreur revient pour la troisième fois",
     "planche": "gratter/gratter_planche.png"
   },
-  "batte_tenue": {
+  "menace_tenue": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
@@ -352,9 +352,9 @@
     ],
     "boucle": true,
     "usage": "Attente pendant la bouderie : immobile, la batte tenue devant elle, dérivée de batte_08",
-    "planche": "batte_tenue/batte_tenue_planche.png"
+    "planche": "menace_tenue/menace_tenue_planche.png"
   },
-  "batte_clignement": {
+  "menace_clignement": {
     "images": 4,
     "taille": "80x80",
     "durees_ms": [
@@ -365,9 +365,9 @@
     ],
     "boucle": false,
     "usage": "Clignement des yeux pendant la bouderie, la batte toujours en main",
-    "planche": "batte_clignement/batte_clignement_planche.png"
+    "planche": "menace_clignement/menace_clignement_planche.png"
   },
-  "batte_rangee": {
+  "menace_rangee": {
     "images": 9,
     "taille": "80x80",
     "durees_ms": [
@@ -383,7 +383,7 @@
     ],
     "boucle": false,
     "usage": "Fin de la bouderie : le swing à l'envers, elle range la batte derrière elle",
-    "planche": "batte_rangee/batte_rangee_planche.png"
+    "planche": "menace_rangee/menace_rangee_planche.png"
   },
   "yeux_nord": {
     "images": 1,
@@ -465,84 +465,84 @@
     "usage": "Attente, les yeux tournés vers la souris (en haut à gauche) : attente avec les yeux décalés, dérivée par scripts/make-eyes.py",
     "planche": "yeux_nord_ouest/yeux_nord_ouest_planche.png"
   },
-  "batte_yeux_nord": {
+  "menace_yeux_nord": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (en haut) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_nord/batte_yeux_nord_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (en haut) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_nord/menace_yeux_nord_planche.png"
   },
-  "batte_yeux_nord_est": {
+  "menace_yeux_nord_est": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (en haut à droite) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_nord_est/batte_yeux_nord_est_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (en haut à droite) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_nord_est/menace_yeux_nord_est_planche.png"
   },
-  "batte_yeux_est": {
+  "menace_yeux_est": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (à droite) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_est/batte_yeux_est_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (à droite) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_est/menace_yeux_est_planche.png"
   },
-  "batte_yeux_sud_est": {
+  "menace_yeux_sud_est": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (en bas à droite) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_sud_est/batte_yeux_sud_est_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (en bas à droite) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_sud_est/menace_yeux_sud_est_planche.png"
   },
-  "batte_yeux_sud": {
+  "menace_yeux_sud": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (en bas) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_sud/batte_yeux_sud_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (en bas) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_sud/menace_yeux_sud_planche.png"
   },
-  "batte_yeux_sud_ouest": {
+  "menace_yeux_sud_ouest": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (en bas à gauche) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_sud_ouest/batte_yeux_sud_ouest_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (en bas à gauche) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_sud_ouest/menace_yeux_sud_ouest_planche.png"
   },
-  "batte_yeux_ouest": {
+  "menace_yeux_ouest": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (à gauche) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_ouest/batte_yeux_ouest_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (à gauche) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_ouest/menace_yeux_ouest_planche.png"
   },
-  "batte_yeux_nord_ouest": {
+  "menace_yeux_nord_ouest": {
     "images": 1,
     "taille": "80x80",
     "durees_ms": [
       1000
     ],
     "boucle": true,
-    "usage": "Bouderie, les yeux tournés vers la souris (en haut à gauche) : batte_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
-    "planche": "batte_yeux_nord_ouest/batte_yeux_nord_ouest_planche.png"
+    "usage": "Bouderie, les yeux tournés vers la souris (en haut à gauche) : menace_tenue avec les yeux décalés, dérivée par scripts/make-eyes.py",
+    "planche": "menace_yeux_nord_ouest/menace_yeux_nord_ouest_planche.png"
   }
 }

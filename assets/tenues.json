@@ -8,17 +8,17 @@
   "bonnet": {
     "usage": "Bonnet de laine, du 1er décembre à fin février",
     "calques": [{"fichier": "tenues/bonnet.png", "z": "devant", "suit_la_tete": true}],
-    "cache_pendant": ["ramper_*", "batte", "batte_rangee", "gratter"]
+    "cache_pendant": ["marche_*", "menace", "menace_rangee", "gratter"]
   },
   "lunettes": {
     "usage": "Lunettes de soleil, du 21 juin au 1er septembre, de 11 h à 17 h",
     "calques": [{"fichier": "tenues/lunettes.png", "z": "devant", "suit_la_tete": true}],
-    "cache_pendant": ["ramper_*", "facepalm", "chut", "batte", "batte_rangee", "endormie"]
+    "cache_pendant": ["marche_*", "facepalm", "chut", "menace", "menace_rangee", "endormie"]
   },
   "chapeau_fete": {
     "usage": "Chapeau pointu, le jour de son anniversaire",
     "calques": [{"fichier": "tenues/chapeau_fete.png", "z": "devant", "suit_la_tete": true}],
-    "cache_pendant": ["ramper_*", "batte", "batte_rangee", "gratter"]
+    "cache_pendant": ["marche_*", "menace", "menace_rangee", "gratter"]
   },
   "verre": {
     "usage": "Un verre avec une paille, le vendredi soir, tenu par son tentacule de droite",
@@ -29,6 +29,6 @@
   "transat": {
     "usage": "Un transat sous elle, le vendredi soir",
     "calques": [{"fichier": "tenues/transat.png", "z": "derriere"}],
-    "cache_pendant": ["ramper_*"]
+    "cache_pendant": ["marche_*"]
   }
 }

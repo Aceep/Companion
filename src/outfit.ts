@@ -63,6 +63,16 @@ export class OutfitCatalog {
         return this.outfits.values();
     }
 
+    /** Whether the pack draws this outfit at all. */
+    has(id: OutfitId): boolean {
+        return this.outfits.has(id);
+    }
+
+    /** Of these, the ones the pack draws. */
+    available(ids: ReadonlySet<OutfitId>): Set<OutfitId> {
+        return new Set([...ids].filter(id => this.outfits.has(id)));
+    }
+
     /** Whether the outfit shows while `animation` plays; nothing shows once the player stopped. */
     isVisibleDuring(id: OutfitId, animation: string | null): boolean {
         const outfit = this.outfits.get(id);
@@ -74,8 +84,15 @@ export class OutfitCatalog {
     }
 }
 
+/**
+ * The outfits a pack draws: those of `tenues.json` the rules know, each
+ * checked against the pack's animations. A pack without the file dresses
+ * up in nothing; one that describes only some outfits wears only those.
+ */
 export function loadOutfits(assetsDir: Gio.File, animationNames: Iterable<string>): OutfitCatalog {
     const file = assetsDir.get_child('tenues.json');
+    if (!file.query_exists(null))
+        return new OutfitCatalog(new Map());
     const [, contents] = file.load_contents(null);
     const raw = JSON.parse(decoder.decode(contents)) as Record<string, RawOutfit>;
     const names = [...animationNames];
@@ -83,9 +100,8 @@ export function loadOutfits(assetsDir: Gio.File, animationNames: Iterable<string
     const outfits = new Map<OutfitId, OutfitDef>();
     for (const id of OUTFIT_IDS) {
         const outfit = raw[id];
-        if (!outfit)
-            throw new Error(`tenues.json has no "${id}" outfit`);
-        outfits.set(id, toOutfitDef(id, outfit, assetsDir, names));
+        if (outfit)
+            outfits.set(id, toOutfitDef(id, outfit, assetsDir, names));
     }
     return new OutfitCatalog(outfits);
 }
@@ -111,7 +127,7 @@ function toOutfitDef(id: OutfitId, raw: RawOutfit, assetsDir: Gio.File, animatio
     return {id, usage: raw.usage, layers, visibleDuring, hiddenDuring};
 }
 
-/** An animation name, or a prefix ending in `*`: "ramper_*" covers both crawls. */
+/** An animation name, or a prefix ending in `*`: "marche_*" covers both walks. */
 function matches(pattern: string, name: string): boolean {
     return pattern.endsWith('*') ? name.startsWith(pattern.slice(0, -1)) : name === pattern;
 }
@@ -165,6 +181,11 @@ export class OutfitLayer {
 
     get wearing(): ReadonlySet<OutfitId> {
         return this.worn;
+    }
+
+    /** Of these, the ones the pack draws; the rest cannot be worn. */
+    available(ids: ReadonlySet<OutfitId>): Set<OutfitId> {
+        return this.catalog.available(ids);
     }
 
     /** Puts these on and takes everything else off. */

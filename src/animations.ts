@@ -1,9 +1,10 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
+import {PACK_FRAME_SIZE, reviewAnimations, type AnimationReview} from './pack.js';
 import {IDLE_ANIMATION} from './player.js';
 
-export const FRAME_SIZE = 80;
+export const FRAME_SIZE = PACK_FRAME_SIZE;
 
 /**
  * Animations drawn facing one way only, played the other way with their
@@ -41,7 +42,19 @@ interface RawAnimation {
 
 const decoder = new TextDecoder('utf-8');
 
-export function loadAnimations(assetsDir: Gio.File): Map<string, AnimationDef> {
+export interface LoadedAnimations {
+    readonly animations: Map<string, AnimationDef>;
+    /** What the pack lacks and what stands in for it. */
+    readonly review: AnimationReview;
+}
+
+/**
+ * The animations of the pack in `assetsDir`, with the pack's gaps filled
+ * the way `reviewAnimations` says: a missing walk is the other's mirror,
+ * a missing gesture plays another one's frames under its own name, and a
+ * half-drawn group is left out so the behaviour does without it.
+ */
+export function loadAnimations(assetsDir: Gio.File): LoadedAnimations {
     const file = assetsDir.get_child('animations.json');
     const [, contents] = file.load_contents(null);
     const raw = JSON.parse(decoder.decode(contents)) as Record<string, RawAnimation>;
@@ -50,16 +63,31 @@ export function loadAnimations(assetsDir: Gio.File): Map<string, AnimationDef> {
     for (const [name, def] of Object.entries(raw))
         animations.set(name, toAnimationDef(name, def, assetsDir));
 
+    const review = reviewAnimations(animations.keys());
+    for (const name of review.dropped)
+        animations.delete(name);
+    for (const [name, mirrorOf] of review.mirrored)
+        animations.set(name, {...mustHave(animations, mirrorOf), name, mirrored: true});
+    for (const [name, playedAs] of review.substitutes)
+        animations.set(name, {...mustHave(animations, playedAs), name});
+
     for (const [name, drawn] of Object.entries(MIRRORED)) {
         const original = animations.get(drawn);
         if (!original)
-            throw new Error(`animations.json has no "${drawn}" animation to mirror`);
+            continue;
         animations.set(name, {...original, name, mirrored: true});
     }
 
     if (!animations.has(IDLE_ANIMATION))
         throw new Error(`animations.json has no "${IDLE_ANIMATION}" animation`);
-    return animations;
+    return {animations, review};
+}
+
+function mustHave(animations: ReadonlyMap<string, AnimationDef>, name: string): AnimationDef {
+    const animation = animations.get(name);
+    if (!animation)
+        throw new Error(`animations.json has no "${name}" animation`);
+    return animation;
 }
 
 function toAnimationDef(name: string, raw: RawAnimation, assetsDir: Gio.File): AnimationDef {

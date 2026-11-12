@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Ton propre personnage à la place de Crêpe, en cinq étapes.
+
+Tu veux Crêpe telle quelle ? Pas besoin de ce script : npm run deploy.
+
+Tu veux ton personnage ?
+
+  1. Donne-lui un identifiant en minuscules, par exemple « poireau ».
+
+  2. ./pack poireau
+     Quatre questions (son nom, le mot qu'il répète, l'auteur, une
+     description), puis le dossier du pack est créé :
+       ~/.local/share/crepe/packs/poireau/
+
+  3. Dessine-le : des PNG 80×80 à déposer dans ce dossier, au minimum sa
+     pose d'attente, son clignement et sa marche vers la droite. Le script
+     dit comment à la fin de l'étape 2, et PACKS.md décrit chaque animation.
+     Avec un compte PixelLab, le skill inclus les dessine pour toi.
+
+  4. ./pack poireau
+     Prépare le pack à partir des images, le vérifie et dit ce qu'il manque.
+     À relancer après chaque ajout d'images.
+
+  5. Préférences de l'extension, page « Apparence » : choisis-le.
+"""
+
+MCP_PIXELLAB = 'claude mcp add pixellab https://api.pixellab.ai/mcp -t http -H "Authorization: Bearer <token>"'
+
+SUITE = """
+Il reste à dessiner. Deux chemins :
+
+  Le skill inclus, .claude/skills/pack-pixellab : il crée les animations dans
+  ce dossier avec PixelLab, à partir d'une description ou d'un PNG de départ.
+  Branche le MCP PixelLab une fois (token sur pixellab.ai) :
+    {mcp}
+  puis ouvre Claude Code à la racine du dépôt et tape /pack-pixellab.
+
+  À la main : des PNG 80×80, le corps dans le cadre de gabarit.png, déposés en
+  <animation>/<animation>_00.png, _01.png… PACKS.md décrit chaque animation.
+
+Dans les deux cas, ensuite :
+  ./pack {identifiant}
+"""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
+import pack as outils  # noqa: E402
+
+
+def dossier_des_packs() -> Path:
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(base) / "crepe" / "packs"
+
+
+def main(arguments: list[str]) -> int:
+    if len(arguments) != 1 or arguments[0].startswith("-"):
+        print(__doc__.strip())
+        return 2
+    identifiant = arguments[0]
+    dossier = dossier_des_packs() / identifiant
+    if not (dossier / "pack.json").exists():
+        code = outils.commande_init(dossier, relance=[])
+        if code == 0:
+            print(SUITE.format(mcp=MCP_PIXELLAB, identifiant=identifiant), end="")
+        return code
+    print(f"Pack {dossier}\n")
+    code = outils.commande_animations(dossier)
+    if code != 0:
+        return code
+    print()
+    return outils.commande_check(dossier)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

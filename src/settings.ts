@@ -12,6 +12,7 @@ export type Layer = 'top' | 'behind';
 
 export type SettingsKey =
     | 'visible'
+    | 'sprite-pack'
     | 'scale'
     | 'sleep-after-minutes'
     | 'crawl'
@@ -69,6 +70,11 @@ export class CrepeSettings {
 
     set visible(value: boolean) {
         this.gsettings.set_boolean('visible', value);
+    }
+
+    /** The folder name of the pack she is drawn from; "" for the built-in one. */
+    get spritePack(): string {
+        return this.gsettings.get_string('sprite-pack');
     }
 
     get scale(): number {

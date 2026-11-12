@@ -4,7 +4,7 @@
 Her eyes are solid dark ovals with a small highlight, no white around
 them, so "looking somewhere" means moving the whole eye inside the face,
 the way Theo's own glance (regard_droite) does: two pixels sideways,
-one up or down. Each pose is the rest frame (attente_00, and batte_tenue_00
+one up or down. Each pose is the rest frame (attente_00, and menace_tenue_00
 for the sulk) with both eyes lifted off and put back at an offset, so the
 eyes keep their exact shape and nothing else moves.
 
@@ -44,7 +44,7 @@ DIRECTIONS = {
 # Resting pose: (source frame, name prefix of the derived ones).
 POSES = [
     (ASSETS / "attente" / "attente_00.png", "yeux"),
-    (ASSETS / "batte_tenue" / "batte_tenue_00.png", "batte_yeux"),
+    (ASSETS / "menace_tenue" / "menace_tenue_00.png", "menace_yeux"),
 ]
 
 

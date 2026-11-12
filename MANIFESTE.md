@@ -27,6 +27,13 @@ ses rythmes sont ceux de Theo, gardés tels quels. Tout ce qui s'ajoute
 (lunettes, batte, bonnet, tâches d'encre) se dessine dans sa palette, à son
 échelle, et se pose sur elle sans la redessiner.
 
+D'autres peuvent poser un autre personnage au même endroit : un pack de
+sprites (voir PACKS.md) remplace le dessin, le nom, le mot et les phrases.
+Ce n'est pas Crêpe redessinée, c'est quelqu'un d'autre qui a emprunté sa
+vie sur l'écran : il s'ennuie, boude et s'en va comme elle, avec ses
+propres gestes et ce qu'il n'a pas dessiné, il s'en passe. Crêpe reste le
+personnage par défaut, et tout ce texte parle d'elle.
+
 ## Ce qu'elle est
 
 - **Blasée, grognonne, sèche.** Elle se plaint tout le temps, on le lui
@@ -127,6 +134,7 @@ Une idée entre si elle répond oui à toutes :
 ## Ce qui ne bouge pas
 
 La peluche est l'originale ; l'écran la suit, jamais l'inverse. Les sprites
-et les rythmes de Theo, tels quels. Les 80 pixels, la palette, le contour
-sombre d'un pixel. Le corps comme seule zone cliquable. Le français.
-L'absence d'emoji. Le nom.
+et les rythmes de Theo, tels quels, pour elle. Les 80 pixels, la palette, le
+contour sombre d'un pixel. Le corps comme seule zone cliquable. Le français.
+L'absence d'emoji. Le nom. Un autre pack change le dessin, le nom et les
+phrases, jamais ce qu'elle fait ni ce qu'elle ne fait jamais.

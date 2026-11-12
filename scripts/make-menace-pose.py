@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Derive the "holding the bat" poses from the last frame of the swing.
 
-Theo's "batte" swing ends with the bat held across her front. While she
-sulks she keeps it out: batte_08 becomes her resting pose, gets the same
+Theo's "menace" swing ends with the bat held across her front. While she
+sulks she keeps it out: menace_08 becomes her resting pose, gets the same
 blink as the normal one, and the swing played backwards is her putting
 the bat away. Only the eyes are redrawn, at the head's offset from the
 rest frame (measured like scripts/restore-face.py does), so the bat and
 the tentacles stay exactly as Theo drew them.
 
-Usage: scripts/make-bat-pose.py  (from anywhere; paths are relative to the repo)
+Usage: scripts/make-menace-pose.py  (from anywhere; paths are relative to the repo)
 """
 from pathlib import Path
 
@@ -17,7 +17,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
 REST = ASSETS / "respiration" / "respiration_00.png"
-SWING = ASSETS / "batte"
+SWING = ASSETS / "menace"
 SWING_FRAMES = 9
 
 BODY = (94, 188, 224, 255)
@@ -91,16 +91,16 @@ def write_animation(name: str, frames: list[Image.Image]) -> None:
 
 def main() -> None:
     rest = Image.open(REST).convert("RGBA")
-    swing = [Image.open(SWING / f"batte_{index:02d}.png").convert("RGBA") for index in range(SWING_FRAMES)]
+    swing = [Image.open(SWING / f"menace_{index:02d}.png").convert("RGBA") for index in range(SWING_FRAMES)]
     held = swing[-1]
     dx, dy = head_offset(rest, held)
-    assert eyes_match(rest, held, dx, dy), "batte_08 eyes differ from the rest frame; the blink would erase something"
+    assert eyes_match(rest, held, dx, dy), "menace_08 eyes differ from the rest frame; the blink would erase something"
 
-    write_animation("batte_tenue", [held])
+    write_animation("menace_tenue", [held])
     half = half_closed(held, dx, dy)
-    write_animation("batte_clignement", [held, half, closed(held, dx, dy), half])
-    write_animation("batte_rangee", list(reversed(swing)))
-    print(f"head offset {(dx, dy)}; wrote assets/batte_tenue, assets/batte_clignement and assets/batte_rangee")
+    write_animation("menace_clignement", [held, half, closed(held, dx, dy), half])
+    write_animation("menace_rangee", list(reversed(swing)))
+    print(f"head offset {(dx, dy)}; wrote assets/menace_tenue, assets/menace_clignement and assets/menace_rangee")
 
 
 if __name__ == "__main__":
